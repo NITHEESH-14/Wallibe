@@ -495,7 +495,7 @@ body.panel-open #panel-trigger::after {
 /* ── Typography UI ────────────────────────────────────── */
 .sp-font-item { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; padding: 0 4px; }
 .sp-font-box { display: flex; align-items: center; gap: 6px; width: 145px; }
-.sp-font-upload { flex: 1; background: var(--sp-surface); border: 1px solid var(--sp-border); border-radius: 6px; padding: 6px 8px; cursor: pointer; color: var(--sp-muted); font-size: 0.72rem; text-align: center; transition: all var(--sp-tr); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.sp-font-upload { flex: 1; background: var(--sp-surface); border: 1px solid var(--sp-border); border-radius: 6px; padding: 6px 8px; cursor: pointer; color: var(--sp-muted); font-size: 0.72rem; text-align: center; transition: all var(--sp-tr); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; justify-content: center; gap: 4px; }
 .sp-font-upload:hover { background: var(--sp-surface2); border-color: var(--sp-accent); color: var(--sp-text); }
 .sp-font-upload.active { background: rgba(16,185,129,0.1); border-color: var(--sp-accent); color: var(--sp-accent); font-weight: 600; }
 .sp-font-clear { display: none; background: rgba(255,80,80,0.1); border: none; border-radius: 6px; color: var(--sp-accent2, #ff7070); width: 26px; height: 26px; cursor: pointer; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }

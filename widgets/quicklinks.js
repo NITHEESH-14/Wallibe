@@ -45,6 +45,10 @@ class QuickLinksWidget {
       a.innerHTML = `<div class="quicklink-icon-wrap">${this._buildIcon(link)}</div><span class="quicklink-label">${link.title}</span>`;
 
       widget.appendChild(a);
+      const rotateHandle = document.createElement('div');
+      rotateHandle.className = 'rotate-handle';
+      rotateHandle.dataset.widget = widgetId;
+      widget.appendChild(rotateHandle);
       layer.appendChild(widget);
 
       // Set default position — pixel-accurate centering of the entire group

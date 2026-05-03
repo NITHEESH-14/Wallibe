@@ -13,7 +13,7 @@ try {
   const _sp = _pos['search-widget'];
   if (_sp && _sp.height) {
     const _h = +_sp.height;
-    const _f = Math.max(0.9, Math.min(1.8, 1.5 * (_h / 52)));
+    const _f = Math.max(0.8, Math.min(1.4, 1.1 * (_h / 52)));
     document.documentElement.style.setProperty('--search-font-size', _f.toFixed(2) + 'rem');
   }
 } catch (_) {}
@@ -57,6 +57,10 @@ async function getAllSettings() {
     for (const k of Object.keys(DEFAULT_SETTINGS)) {
       if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(k)) {
         settings[k] = await window.__IDB.get(k, lsGet(k, DEFAULT_SETTINGS[k]));
+      } else if (k === 'floatCards') {
+        const cached = await window.__IDB.get('floatCards', null);
+        if (cached) settings.floatCards = cached;
+        else settings.floatCards = lsGet('floatCards', DEFAULT_SETTINGS.floatCards);
       } else {
         settings[k] = lsGet(k, DEFAULT_SETTINGS[k]);
       }
@@ -123,6 +127,7 @@ const DEFAULT_SETTINGS = {
   searchLogoUrl: '',
   panelLocked: false,
   panelShortcut: 'Alt+S',
+  floatCards: [],
   clockFontUrl: '',
   dateFontUrl: '',
   othersFontUrl: '',
@@ -185,14 +190,27 @@ function loadCustomFonts(settings) {
     const btnEl = document.getElementById(`sp-${type}-font-btn`);
     const clearEl = document.getElementById(`sp-${type}-font-clear`);
     if (!nameEl || !btnEl || !clearEl) return;
+
+    // Ensure icon exists for font buttons
+    if (!btnEl.querySelector('.sp-icon')) {
+      btnEl.insertAdjacentHTML('afterbegin', `<svg class="sp-icon" viewBox="0 0 24 24" style="width:14px; height:14px; margin-right:4px; flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+    }
+
     if (url) {
       nameEl.textContent = name || 'Custom Font';
       btnEl.classList.add('active');
       clearEl.style.display = 'flex';
+      // Hide icon if uploaded
+      const icon = btnEl.querySelector('.sp-icon');
+      if (icon) icon.remove();
     } else {
       nameEl.textContent = 'Import Font';
       btnEl.classList.remove('active');
       clearEl.style.display = 'none';
+      // Re-add icon if missing
+      if (!btnEl.querySelector('.sp-icon')) {
+        btnEl.insertAdjacentHTML('afterbegin', `<svg class="sp-icon" viewBox="0 0 24 24" style="width:14px; height:14px; margin-right:4px; flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+      }
     }
   };
   updateUI('clock', clockUrl, settings.clockFontName);
@@ -205,29 +223,25 @@ window.__loadCustomFonts = () => {
 
 /* ── Default widget positions (as % of viewport) ── */
 const DEFAULT_POSITIONS = {
-  'clock-widget': { left: 50, top: 31, anchorX: 'center' },
-  'date-widget': { left: 50, top: 49, anchorX: 'center' },
-  'search-widget': { left: 50, top: 58, anchorX: 'center' }
+  'clock-widget':      { left: 50, top: 31, anchorX: 'center' },
+  'date-widget':       { left: 50, top: 49, anchorX: 'center' },
+  'search-widget':     { left: 50, top: 58, anchorX: 'center' }
 };
 
 // ─── Positioning ─────────────────────────────────────────
 function applyPosition(el, pos, vw, vh, w, h) {
   let x = (pos.left / 100) * vw;
   let y = (pos.top / 100) * vh;
+  const rotateDeg = pos.rotate || 0;
+  const rotateStr = rotateDeg ? `rotate(${rotateDeg}deg)` : '';
 
   if (pos.anchorX === 'center') {
     el.style.left = '50%';
-    const t = el.style.transform || '';
-    el.style.transform = t.includes('translateY')
-      ? t.replace(/translateX\([^)]+\)/, '').trim() + ' translateX(-50%)'
-      : 'translateX(-50%)';
-  } else if (pos.anchorX === 'right') {
-    x = vw - w - (pos.left === 0 ? 0 : (1 - pos.left / 100) * vw);
-    el.style.left = x + 'px';
-    el.style.transform = (el.style.transform || '').replace(/translateX\([^)]+\)/, '').trim();
+    el.style.transform = `translateX(-50%) ${rotateStr}`.trim();
   } else {
+    if (pos.anchorX === 'right') x = vw - w - (pos.left === 0 ? 0 : (1 - pos.left / 100) * vw);
     el.style.left = x + 'px';
-    el.style.transform = (el.style.transform || '').replace(/translateX\([^)]+\)/, '').trim();
+    el.style.transform = rotateStr || 'none';
   }
 
   if (pos.anchorY === 'center' || pos.anchorY === 'middle') y = Math.round((vh - h) / 2);
@@ -259,7 +273,7 @@ function layoutWidgets() {
             root.style.setProperty('--search-height', s.height + 'px');
             // Set font size atomically with height to prevent FOUC
             const h = +s.height;
-            const fSize = Math.max(0.9, Math.min(1.8, 1.5 * (h / 52)));
+            const fSize = Math.max(0.8, Math.min(1.4, 1.1 * (h / 52)));
             root.style.setProperty('--search-font-size', fSize.toFixed(2) + 'rem');
           }
         }
@@ -269,8 +283,12 @@ function layoutWidgets() {
         if (id === 'date-widget' && s.fontSize) {
           root.style.setProperty('--date-font-size', s.fontSize + 'rem');
         }
+        if (id.startsWith('float-card-widget-')) {
+          el.style.width = s.width + 'px';
+          if (s.height) el.style.height = s.height + 'px';
+        }
       }
-
+      
       const w = el.offsetWidth;
       const h = el.offsetHeight;
       if (w === 0 || h === 0) return null;
@@ -316,7 +334,8 @@ function savePosition(widgetId) {
     anchorX: anchorX,
     anchorY: 'top',
     width: el.offsetWidth,
-    height: el.offsetHeight
+    height: el.offsetHeight,
+    rotate: parseFloat(el.style.getPropertyValue('--widget-rotate')) || 0
   };
   lsSet('widgetPositions', saved);
 }
@@ -413,9 +432,10 @@ function applyAccentColor(color, s = {}) {
 }
 window.__applyAccentColor = applyAccentColor;
 
-// ─── Drag & Resize state (declare first, use below) ──────
+// ─── Drag, Resize & Rotate state (declare first, use below) ──────
 let _dragging = null;
 let _resizing = null;
+let _rotating = null;
 
 // ─── Drag handlers ───────────────────────────────────────────
 function _startDrag(el, clientX, clientY) {
@@ -475,6 +495,51 @@ function attachDragHandlers() {
 }
 window.__attachDragHandlers = attachDragHandlers;
 
+// ─── Rotate handlers ─────────────────────────────────────
+function attachRotateHandlers() {
+  document.querySelectorAll('.draggable-widget').forEach(el => {
+    if (!el.id) return;
+    if (!el.querySelector('.rotate-handle')) {
+      const h = document.createElement('div');
+      h.className = 'rotate-handle';
+      h.dataset.widget = el.id;
+      el.appendChild(h);
+    }
+  });
+
+  document.querySelectorAll('.rotate-handle').forEach(handle => {
+    // Prevent duplicate listeners
+    if (handle._hasRotateListener) return;
+    handle._hasRotateListener = true;
+    
+    const startRotate = e => {
+      if (!document.body.classList.contains('edit-layout')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const isTouch = e.type === 'touchstart';
+      const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+      const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+      const widgetId = handle.dataset.widget;
+      const el = document.getElementById(widgetId);
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      const startAngle = Math.atan2(clientY - centerY, clientX - centerX);
+      const currentRotate = parseFloat(el.style.getPropertyValue('--widget-rotate')) || 0;
+      
+      _rotating = {
+        el, widgetId, centerX, centerY, startAngle, currentRotate
+      };
+      el.style.transition = 'none';
+    };
+    handle.addEventListener('mousedown', startRotate, { passive: false });
+    handle.addEventListener('touchstart', startRotate, { passive: false });
+  });
+}
+window.__attachRotateHandlers = attachRotateHandlers;
+
 // ─── Resize handlers ─────────────────────────────────────
 function attachResizeHandlers() {
   document.querySelectorAll('.resize-handle').forEach(handle => {
@@ -508,6 +573,7 @@ function attachResizeHandlers() {
     handle.addEventListener('touchstart', startResize, { passive: false });
   });
 }
+window.__attachResizeHandlers = attachResizeHandlers;
 
 // ─── Unified event handlers (Mouse + Touch) ─────────────
 function handleMove(e) {
@@ -515,11 +581,34 @@ function handleMove(e) {
   const clientX = isTouch ? e.touches[0].clientX : e.clientX;
   const clientY = isTouch ? e.touches[0].clientY : e.clientY;
 
+  if (_rotating) {
+    if (isTouch) e.preventDefault();
+    const angle = Math.atan2(clientY - _rotating.centerY, clientX - _rotating.centerX);
+    const deg = (angle - _rotating.startAngle) * (180 / Math.PI);
+    let finalDeg = _rotating.currentRotate + deg;
+    
+    // Snap to 45 degree increments if close
+    if (Math.abs(finalDeg % 45) < 5 || Math.abs(finalDeg % 45) > 40) {
+      finalDeg = Math.round(finalDeg / 45) * 45;
+    }
+    
+    const rotateStr = finalDeg ? `rotate(${finalDeg}deg)` : '';
+    const currentTransform = _rotating.el.style.transform || '';
+    if (currentTransform.includes('translateX(-50%)')) {
+      _rotating.el.style.transform = `translateX(-50%) ${rotateStr}`;
+    } else {
+      _rotating.el.style.transform = rotateStr;
+    }
+    _rotating.el.style.setProperty('--widget-rotate', finalDeg + 'deg'); // Keep for savePosition
+    return;
+  }
+
   if (_resizing) {
     if (isTouch) e.preventDefault();
     const dw = clientX - _resizing.startX;
     const dh = clientY - _resizing.startY;
-    let minW = 100, minH = 24;
+    const isCard = _resizing.widgetId.startsWith('float-card-widget-');
+    let minW = isCard ? 30 : 100, minH = isCard ? 30 : 24;
     if (_resizing.widgetId === 'search-widget') { minW = 280; minH = 52; }
     if (_resizing.widgetId === 'date-widget') { minW = 140; }
 
@@ -529,8 +618,14 @@ function handleMove(e) {
     let newW = _resizing.startW + dw * 2;
     let newH = _resizing.startH + dh * 2;
 
-    newW = Math.max(minW, Math.min(newW, maxW));
-    newH = Math.max(minH, Math.min(newH, maxH));
+    // Constrain to screen boundaries
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const maxSafeW = Math.min(maxW, _resizing.centerX * 2, (vw - _resizing.centerX) * 2);
+    const maxSafeH = Math.min(maxH, _resizing.centerY * 2, (vh - _resizing.centerY) * 2);
+
+    newW = Math.max(minW, Math.min(newW, maxSafeW));
+    newH = Math.max(minH, Math.min(newH, maxSafeH));
     const root = document.documentElement;
 
     // Symmetric resizing
@@ -544,6 +639,9 @@ function handleMove(e) {
       _resizing.el.style.top = (_resizing.centerY - newH / 2) + 'px';
       root.style.setProperty('--search-width', newW + 'px');
       root.style.setProperty('--search-height', newH + 'px');
+    } else if (_resizing.widgetId.startsWith('float-card-widget-')) {
+      _resizing.el.style.height = newH + 'px';
+      _resizing.el.style.top = (_resizing.centerY - newH / 2) + 'px';
     } else if (_resizing.widgetId === 'clock-widget') {
       const fontSize = Math.max(1.5, Math.min(10, newW / 65));
       root.style.setProperty('--clock-font-size', fontSize + 'rem');
@@ -561,9 +659,16 @@ function handleMove(e) {
   let left = clientX - _dragging.offsetX;
   let top = clientY - _dragging.offsetY;
 
-  // Optional: snap to horizontal center of screen
+  // Constrain to screen boundaries
   const vw = window.innerWidth;
+  const vh = window.innerHeight;
   const w = _dragging.el.offsetWidth;
+  const h = _dragging.el.offsetHeight;
+
+  left = Math.max(0, Math.min(left, vw - w));
+  top = Math.max(0, Math.min(top, vh - h));
+
+  // Optional: snap to horizontal center of screen
   const snapZone = 20;
   if (Math.abs((left + w / 2) - vw / 2) < snapZone) {
     left = vw / 2 - w / 2;  // align exactly to center
@@ -601,6 +706,10 @@ function handleEnd() {
     }
     lsSet('widgetPositions', s);
     _resizing = null;
+  }
+  if (_rotating) {
+    savePosition(_rotating.widgetId);
+    _rotating = null;
   }
 }
 
@@ -686,6 +795,77 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   [window.__clock, window.__quicklinks, window.__search].forEach(w => w.init());
 
+  // ── Float Cards Widget init ──────────────────────────────
+  class FloatCardsWidget {
+    constructor(s) { this.settings = s; }
+    init() { 
+      let cards = this.settings.floatCards;
+      if (!Array.isArray(cards)) cards = [];
+      this._render(cards); 
+    }
+    _render(cards) {
+      const existingIds = new Set(Array.from(document.querySelectorAll('.single-float-card-widget')).map(el => el.id));
+      document.querySelectorAll('.single-float-card-widget').forEach(el => el.remove());
+      const layer = document.getElementById('widget-layer');
+      if (!layer) return;
+      
+      cards.forEach((card, i) => {
+        const widgetId = 'float-card-widget-' + i;
+        const widget = document.createElement('div');
+        widget.id = widgetId;
+        widget.className = 'widget draggable-widget single-float-card-widget' + (!card.url ? ' float-card-glass' : ' has-content');
+        if (existingIds.has(widgetId)) widget.classList.add('no-animate');
+        
+        if (card.url) {
+          const isVideo = card.type === 'video' || card.url.startsWith('data:video/') || card.url.toLowerCase().endsWith('.gif');
+          if (isVideo) {
+            widget.innerHTML = `
+              <video class="float-card-img" src="${card.url}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>
+              <div class="rotate-handle" data-widget="${widgetId}"></div>
+              <div class="resize-handle" data-widget="${widgetId}"></div>
+            `;
+          } else {
+            widget.innerHTML = `
+              <img class="float-card-img" src="${card.url}" alt="" />
+              ${card.caption ? `<div class="float-card-caption" style="position:absolute; top:100%; left:0; width:100%; text-align:center; padding:8px 0; color:var(--text); font-size:0.85rem; text-shadow:0 1px 4px rgba(0,0,0,0.5);">${card.caption}</div>` : ''}
+              <div class="rotate-handle" data-widget="${widgetId}"></div>
+              <div class="resize-handle" data-widget="${widgetId}"></div>
+            `;
+          }
+        } else {
+          widget.innerHTML = `
+            <div class="rotate-handle" data-widget="${widgetId}"></div>
+            <div class="resize-handle" data-widget="${widgetId}"></div>
+          `;
+        }
+        layer.appendChild(widget);
+        
+        try {
+          const saved = JSON.parse(localStorage.getItem('lt_widgetPositions') || '{}');
+          if (!saved[widgetId]) {
+            // Stack below each other: start at 15%, then add 20% height + 2% gap for each
+            // This ensures they don't overlap by default and stay within screen longer
+            saved[widgetId] = { left: 78, top: 15 + (i * 22), anchorX: 'left', width: 220, height: 160, rotate: 0 };
+            localStorage.setItem('lt_widgetPositions', JSON.stringify(saved));
+          }
+        } catch (e) {}
+      });
+      
+      if (window.__attachDragHandlers) window.__attachDragHandlers();
+      if (window.__attachResizeHandlers) window.__attachResizeHandlers();
+      if (window.__attachRotateHandlers) window.__attachRotateHandlers();
+      if (window.__layoutWidgets) window.__layoutWidgets();
+    }
+    applySettings(s) {
+      this.settings = { ...this.settings, ...s };
+      let cards = this.settings.floatCards;
+      if (!Array.isArray(cards)) cards = [];
+      this._render(cards);
+    }
+  }
+  window.__floatCards = new FloatCardsWidget(settings);
+  window.__floatCards.init();
+
   // Add performance monitoring
   if (performance.timing) {
     window.addEventListener('load', () => {
@@ -699,6 +879,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   attachDragHandlers();
   attachResizeHandlers();
+  attachRotateHandlers();
 
   // One-time layout adjustment ensure it doesn't clear custom positions
   const runLayout = () => {

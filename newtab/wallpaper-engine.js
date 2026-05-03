@@ -84,6 +84,7 @@ class WallpaperEngine {
     const blur = this.settings.blur ?? 0;
     overlay.style.background = `rgba(0,0,0,${(b / 100).toFixed(2)})`;
     overlay.style.backdropFilter = blur > 0 ? `blur(${blur}px)` : 'none';
+    overlay.style.webkitBackdropFilter = blur > 0 ? `blur(${blur}px)` : 'none';
   }
 
   _onVisibility() {

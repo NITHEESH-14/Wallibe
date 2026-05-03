@@ -50,6 +50,7 @@
       { title: 'Gmail', url: 'https://mail.google.com', logo: '' },
       { title: 'Maps', url: 'https://maps.google.com', logo: '' }
     ],
+    floatCards: [],
     editLayout: false
   };
 
@@ -211,11 +212,27 @@
   const resetBtn = document.getElementById('sp-reset-layout-btn');
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
-      if (window.__resetLayout) window.__resetLayout();
+      if (confirm('Reset all widget positions to default?')) {
+        localStorage.removeItem('lt_widgetPositions');
+        location.reload();
+      }
       resetBtn.innerHTML = '<span style="color:var(--sp-accent)">✓ Reset!</span>';
       setTimeout(() => { 
         resetBtn.innerHTML = '<svg class="sp-icon" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke="currentColor" stroke-width="2" fill="none"/></svg><span>Reset Layout to Default</span>'; 
       }, 1500);
+    });
+  }
+
+  const searchClear = document.getElementById('sp-search-logo-clear');
+  if (searchClear) {
+    searchClear.addEventListener('click', () => {
+      const s = mergeSettings({ searchLogoUrl: '', searchLogoName: '' });
+      if (window.__search) window.__search.applySettings({ searchLogoUrl: '', searchEngine: s.searchEngine });
+      searchClear.style.display = 'none';
+      const nameEl = document.getElementById('sp-search-logo-name');
+      if (nameEl) nameEl.textContent = 'Upload Logo';
+      const btnEl = document.getElementById('sp-search-logo-btn');
+      if (btnEl) btnEl.classList.remove('active');
     });
   }
 
@@ -309,24 +326,23 @@
       const reader = new FileReader();
       reader.onload = ev => {
         const url = ev.target.result;
-        mergeSettings({ searchLogoUrl: url });
+        mergeSettings({ searchLogoUrl: url, searchLogoName: file.name });
         if (window.__search) window.__search.applySettings({ searchLogoUrl: url });
-        // Show clear button
+        
+        // Update UI
+        const nameEl = document.getElementById('sp-search-logo-name');
+        if (nameEl) nameEl.textContent = file.name;
+        const btnEl = document.getElementById('sp-search-logo-btn');
+        if (btnEl) {
+          btnEl.classList.add('active');
+          const oldIcon = btnEl.querySelector('.sp-icon');
+          if (oldIcon) oldIcon.remove();
+        }
         const clearBtn = document.getElementById('sp-search-logo-clear');
         if (clearBtn) clearBtn.style.display = 'flex';
       };
       reader.readAsDataURL(file);
       e.target.value = '';
-    });
-  }
-  const searchLogoClear = document.getElementById('sp-search-logo-clear');
-  if (searchLogoClear) {
-    // Set initial visibility
-    searchLogoClear.style.display = window.__currentSettings?.searchLogoUrl ? 'flex' : 'none';
-    searchLogoClear.addEventListener('click', () => {
-      mergeSettings({ searchLogoUrl: '' });
-      if (window.__search) window.__search.applySettings({ searchLogoUrl: '', searchEngine: window.__currentSettings?.searchEngine || 'google' });
-      searchLogoClear.style.display = 'none';
     });
   }
 
@@ -337,6 +353,87 @@
       const isHidden = defaultsList.style.display === 'none';
       defaultsList.style.display = isHidden ? 'block' : 'none';
       defaultsToggle.classList.toggle('open', isHidden);
+    });
+  }
+
+  /* ─── Float Cards ──────────────────────────────── */
+  const floatCardsContainer = document.getElementById('sp-float-cards-list');
+  function renderFloatCards(cards) {
+    if (!floatCardsContainer) return;
+    floatCardsContainer.innerHTML = '';
+    cards.forEach((card, i) => {
+      const item = document.createElement('div');
+      item.className = 'sp-link-item';
+      item.dataset.cardIndex = i;
+      item.style.marginBottom = '12px'; // Tighter spacing for buttons
+      
+      item.innerHTML = `
+        <div class="sp-link-row1">
+          <label class="sp-font-upload ${card.url ? 'active' : ''}" style="flex:1; height:32px; font-size:0.75rem;">
+            ${card.url ? '' : `<svg class="sp-icon" viewBox="0 0 24 24" style="width:14px; height:14px; flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
+            <span class="sp-card-filename">${card.filename || 'Upload Image/GIF'}</span>
+            <input type="file" accept="image/*,video/*" class="sp-card-file" hidden />
+          </label>
+          <button class="sp-link-remove sp-card-remove" title="Delete Card" style="height:32px; width:32px; flex-shrink:0;">✕</button>
+        </div>
+      `;
+
+      item.querySelector('.sp-card-file').addEventListener('change', e => {
+        const file = e.target.files[0]; if (!file) return;
+        const type = file.type.startsWith('video/') ? 'video' : 'image';
+        const reader = new FileReader();
+        reader.onload = ev => {
+          cards[i].url = ev.target.result;
+          cards[i].filename = file.name;
+          cards[i].type = type;
+          updateFloatCards(cards);
+          renderFloatCards(cards);
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+      });
+
+      item.querySelector('.sp-card-remove').addEventListener('click', () => {
+        cleanStoredPositions('float-card-widget-', i, cards.length);
+        cards.splice(i, 1);
+        updateFloatCards(cards);
+        renderFloatCards(cards);
+      });
+
+      floatCardsContainer.appendChild(item);
+    });
+  }
+
+  function cleanStoredPositions(prefix, deletedIndex, totalCount) {
+    try {
+      const saved = JSON.parse(localStorage.getItem('lt_widgetPositions') || '{}');
+      // Shift all subsequent positions up by one index
+      for (let j = deletedIndex; j < totalCount - 1; j++) {
+        const nextId = prefix + (j + 1);
+        const currId = prefix + j;
+        if (saved[nextId]) saved[currId] = saved[nextId];
+        else delete saved[currId];
+      }
+      // Delete the last one
+      delete saved[prefix + (totalCount - 1)];
+      localStorage.setItem('lt_widgetPositions', JSON.stringify(saved));
+    } catch (e) {}
+  }
+
+  function updateFloatCards(cards) {
+    const s = mergeSettings({ floatCards: [...cards] });
+    window.__floatCards?.applySettings(s);
+  }
+
+  const addFloatCardBtn = document.getElementById('sp-add-float-card-btn');
+  if (addFloatCardBtn) {
+    addFloatCardBtn.addEventListener('click', () => {
+      let cards = window.__currentSettings?.floatCards;
+      if (!Array.isArray(cards)) cards = [];
+      cards = [...cards];
+      cards.push({ url: '' });
+      renderFloatCards(cards);
+      updateFloatCards(cards);
     });
   }
 
@@ -482,7 +579,7 @@
     if (si && btn) {
       si.style.height = h + 'px';
       // Drive font size via CSS variable so it's consistent with layoutWidgets
-      const scaledRem = Math.max(0.9, Math.min(1.8, 1.5 * (h / 52)));
+      const scaledRem = Math.max(0.8, Math.min(1.4, 1.1 * (h / 52)));
       document.documentElement.style.setProperty('--search-font-size', scaledRem.toFixed(2) + 'rem');
       si.style.fontSize = ''; // Clear any previously set inline style
       const btnSize = Math.max(28, h - 8);
@@ -587,12 +684,17 @@
         _nameTimer = setTimeout(() => updateLinks(links), 400);
       });
       nameInput.addEventListener('blur', e => { links[i].title = e.target.value; updateLinks(links); });
-      item.querySelector('.sp-link-remove').addEventListener('click', () => { links.splice(i, 1); renderLinks(links); updateLinks(links); });
+      item.querySelector('.sp-link-remove').addEventListener('click', () => {
+        cleanStoredPositions('link-widget-', i, links.length);
+        links.splice(i, 1);
+        renderLinks(links);
+        updateLinks(links);
+      });
       linksContainer.appendChild(item);
     });
   }
   function updateLinks(links) {
-    const s = mergeSettings({ quickLinks: links });
+    const s = mergeSettings({ quickLinks: [...links] });
     window.__quicklinks?.applySettings(s);
   }
 
@@ -687,15 +789,38 @@
 
     renderLinks(s.quickLinks || []);
     document.getElementById('sp-add-link-btn').addEventListener('click', () => {
-      const links = window.__currentSettings.quickLinks || [];
+      // Spread into new array to prevent shared reference with widget's internal state
+      const links = [...(window.__currentSettings.quickLinks || [])];
       links.push({ title:'New Link', url:'https://', logo:'' });
       renderLinks(links);
       updateLinks(links);
     });
 
+    let fc = s.floatCards;
+    if (!Array.isArray(fc)) fc = [];
+    renderFloatCards(fc);
+
     applySearchSize(s);
     if (colorToggle) colorToggle.style.background = s.accentColor;
     if (mainColor2Preview) mainColor2Preview.style.background = s.accentColor2;
+
+    const searchClear = document.getElementById('sp-search-logo-clear');
+    if (searchClear) searchClear.style.display = s.searchLogoUrl ? 'flex' : 'none';
+    const searchLogoName = document.getElementById('sp-search-logo-name');
+    if (searchLogoName && s.searchLogoUrl) searchLogoName.textContent = s.searchLogoName || 'Custom Logo';
+    const searchLogoBtn = document.getElementById('sp-search-logo-btn');
+    if (searchLogoBtn) {
+      if (s.searchLogoUrl) {
+        searchLogoBtn.classList.add('active');
+        const icon = searchLogoBtn.querySelector('.sp-icon');
+        if (icon) icon.remove();
+      } else {
+        searchLogoBtn.classList.remove('active');
+        if (!searchLogoBtn.querySelector('.sp-icon')) {
+          searchLogoBtn.insertAdjacentHTML('afterbegin', `<svg class="sp-icon" viewBox="0 0 24 24" style="width:14px; height:14px; margin-right:4px; flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+        }
+      }
+    }
   })();
 
 })();
