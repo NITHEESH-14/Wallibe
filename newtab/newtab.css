@@ -1,0 +1,437 @@
+/* ═══════════════════════════════════════════════════════
+   LiveTab — newtab.css
+   Performance-first: wallpaper composited on GPU layer,
+   widgets isolated with contain:strict
+═══════════════════════════════════════════════════════ */
+
+/* ── Reset & tokens ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --accent:      #10b981; /* Emerald 500 */
+  --accent2:     #34d399; /* Emerald 400 */
+  --glass-bg:    rgba(16,185,129,0.04);
+  --glass-border:rgba(16,185,129,0.15);
+  --text:        #f8fafc;
+  --text-muted:  rgba(248,250,252,0.6);
+  --shadow:      0 12px 40px rgba(0,0,0,0.5);
+  --radius:      16px;
+  --transition:  0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #0a0a12;
+  color: var(--text);
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  user-select: none;
+}
+
+/* ── Wallpaper layer ─────────────────────────────────── */
+#wallpaper-container {
+  position: fixed; inset: 0;
+  z-index: 0;
+}
+
+#video-wallpaper,
+#webgl-canvas,
+#css-wallpaper,
+#static-wallpaper {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  image-rendering: high-quality;
+  display: none;
+}
+
+#css-wallpaper {
+  background-size: 400% 400%;
+}
+
+#wallpaper-overlay {
+  position: absolute; inset: 0;
+  background: transparent;
+  transition: background var(--transition);
+}
+
+/* ── Widget layer ────────────────────────────────────── */
+#widget-layer {
+  position: fixed; inset: 0;
+  z-index: 10;
+  /* Removed contain: layout style — it was clipping resize-handle dots on child widgets */
+  pointer-events: none; /* let events pass through to wallpaper */
+}
+
+/* All widgets are absolutely positioned; enable pointer events on them */
+.widget, .draggable-widget {
+  pointer-events: all;
+}
+
+/* ── Glass card ──────────────────────────────────────── */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  /* overflow removed: was clipping resize handles */
+}
+
+.widget {
+  overflow: visible;
+  animation: fadeUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* ── Draggable widgets ───────────────────────────────── */
+.draggable-widget {
+  position: absolute;
+  cursor: default;
+  user-select: none;
+  transition: box-shadow 0.2s;
+}
+
+/* Edit mode: clean thin border around each widget */
+body.edit-layout .draggable-widget {
+  cursor: grab;
+  outline: 1px solid rgba(255, 255, 255, 0.25);
+  outline-offset: 4px;
+  border-radius: var(--radius);
+}
+body.edit-layout .draggable-widget:active {
+  cursor: grabbing;
+}
+
+/* No floating badge in edit mode */
+body.edit-layout .draggable-widget::before { display: none; }
+
+
+#clock-widget, #date-widget {
+  text-align: center;
+}
+
+#clock-widget {
+  width: fit-content;
+  padding: 12px 28px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: visible;
+  position: absolute;
+}
+
+body.edit-layout #clock-widget,
+body.edit-layout #date-widget {
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-radius: 16px !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+#clock-time {
+  font-size: var(--clock-font-size, clamp(3rem, 8vw, 6rem));
+  font-weight: 700;
+  letter-spacing: -2px;
+  line-height: 1;
+  text-shadow: none;
+  font-variant-numeric: tabular-nums;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: flex-end;
+}
+
+.clock-ampm {
+  font-size: 0.28em;
+  font-weight: 400;
+  margin-left: 6px;
+  vertical-align: baseline;
+  -webkit-text-fill-color: var(--accent);
+  opacity: 0.7;
+  letter-spacing: 1px;
+  align-self: flex-end;
+  margin-bottom: 0.38em;
+}
+
+#clock-date {
+  font-family: 'Outfit', sans-serif;
+  font-size: var(--date-font-size, 1.25rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  white-space: nowrap;
+  flex: 1;
+  width: 100%;
+  color: var(--accent);
+  transition: gap 0.3s ease;
+}
+
+#clock-date .date-day {
+  font-weight: 500;
+}
+
+#clock-date .date-num {
+  font-weight: 700;
+}
+
+#clock-date .date-month {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.8;
+}
+#date-widget {
+  width: fit-content;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 14px 28px;
+  border-radius: 20px;
+  box-sizing: border-box;
+  position: absolute;
+  transition: background 0.3s ease;
+  overflow: visible;
+}
+
+/* edit-layout #date-widget styles are handled by the combined rule above (lines 120-128) */
+
+
+/* ── Search ──────────────────────────────────────────── */
+/* ── Search ── */
+#search-widget {
+  width: var(--search-width, min(640px, 92vw));
+  height: var(--search-height, 52px);
+  padding: 0 6px;
+  min-width: 280px;
+  min-height: 52px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+#search-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+}
+
+#search-engine-icon {
+  font-size: 1.15rem;
+  padding-left: 10px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+#search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1.05rem;
+  padding: 0;
+  height: 100%;
+  caret-color: var(--accent);
+  min-width: 0;
+}
+#search-input::placeholder { color: var(--text-muted); }
+
+#search-hint { display: none; }
+
+/* --- Search Actions (hidden until typing) --- */
+#search-actions-group {
+  display: none !important; /* Ultra strict hide */
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+  animation: fadeIn 0.15s ease;
+}
+
+/* Show only when class is added via JS */
+#search-actions-group.visible {
+  display: flex !important;
+}
+
+/* Just in case, also hide children by default */
+#search-actions-group:not(.visible) * {
+  display: none !important;
+}
+
+#search-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: color 0.2s;
+}
+#search-clear-btn:hover { color: var(--text); }
+
+#search-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255,255,255,0.18);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+#search-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: color 0.3s ease;
+  margin-right: 4px;
+}
+#search-btn:hover { opacity: 0.8; }
+#search-btn svg { width: 22px; height: 22px; }
+
+
+/* ── Quick Links (individual draggable widgets) ──────── */
+.single-link-widget {
+  z-index: 50;
+}
+
+.quicklink-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 72px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text);
+  transition: transform var(--transition);
+}
+.quicklink-item:hover { transform: translateY(-2px) scale(1.02); }
+
+.quicklink-icon-wrap {
+  width: 44px; height: 44px;
+  border-radius: 14px;
+  background: var(--glass-bg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+
+/* ── Edit mode: disable all widget interactive actions ── */
+body.edit-layout .quicklink-item {
+  pointer-events: none;
+}
+body.edit-layout #search-input,
+body.edit-layout #search-btn,
+body.edit-layout #search-clear-btn,
+body.edit-layout #search-actions-group {
+  pointer-events: none;
+}
+body.edit-layout .quicklink-item:hover {
+  transform: none;
+}
+body.edit-layout .single-link-widget {
+  outline: none !important;
+}
+body.edit-layout .single-link-widget .quicklink-icon-wrap {
+  outline: 1px solid rgba(255, 255, 255, 0.25);
+  outline-offset: 4px;
+}
+body.edit-layout #clock-time,
+body.edit-layout #clock-date {
+  pointer-events: none;
+}
+
+.quicklink-favicon { width: 28px; height: 28px; border-radius: 6px; }
+.quicklink-label   { font-size: 0.72rem; color: var(--text-muted); text-align: center; }
+
+/* ── Keyframe animations ─────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; translate: 0 22px; }
+  to   { opacity: 1; translate: 0 0; }
+}
+@keyframes fadeDown {
+  from { opacity: 0; translate: 0 -12px; }
+  to   { opacity: 1; translate: 0 0; }
+}
+
+/* CSS wallpaper presets */
+@keyframes aurora {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes sunset {
+  0%   { background-position: 0% 0%; }
+  50%  { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+@keyframes ocean {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 80%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── RESIZE HANDLES ────────────────────────── */
+.resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 50% 0 var(--radius) 0;
+  cursor: nwse-resize;
+  display: none;
+  z-index: 200;
+  pointer-events: all;
+  transition: transform 0.15s ease;
+}
+
+
+
+body.edit-layout .resize-handle {
+  display: block !important;
+}
+
+/* Clock/date specific: position handle outside the corner so it's not hidden behind text */
+body.edit-layout #clock-widget .resize-handle,
+body.edit-layout #date-widget .resize-handle {
+  right: -6px;
+  bottom: -6px;
+  z-index: 300;
+  box-shadow: 0 0 4px rgba(0,0,0,0.5);
+}
+
+body.edit-layout .draggable-widget {
+  outline: 1px solid rgba(255, 255, 255, 0.2);
+  outline-offset: 4px;
+}
+
+/* ── Scrollbar ─────────────────────────────── */
+::-webkit-scrollbar { width: 0; }

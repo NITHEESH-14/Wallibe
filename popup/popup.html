@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LiveTab Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span class="logo-icon">🌌</span>
+      <span class="logo-text">LiveTab</span>
+    </div>
+    <span class="version">v1.0</span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="wallpaper">Wallpaper</button>
+    <button class="tab" data-tab="widgets">Widgets</button>
+    <button class="tab" data-tab="search">Search</button>
+    <button class="tab" data-tab="links">Links</button>
+  </div>
+
+  <!-- ═══════ WALLPAPER TAB ══════════════════════════════ -->
+  <section class="tab-content active" id="tab-wallpaper">
+    <label class="field-label">Wallpaper Type</label>
+    <div class="segmented" id="wallpaper-type-seg">
+      <button class="seg-btn active" data-value="webgl">WebGL</button>
+      <button class="seg-btn" data-value="css">CSS</button>
+      <button class="seg-btn" data-value="video">Video</button>
+      <button class="seg-btn" data-value="static">Static</button>
+    </div>
+
+    <!-- WebGL options -->
+    <div class="sub-panel" id="panel-webgl">
+      <label class="field-label">Shader Preset</label>
+      <div class="segmented" id="webgl-preset-seg">
+        <button class="seg-btn active" data-value="fluid">Fluid</button>
+        <button class="seg-btn" data-value="galaxy">Galaxy</button>
+        <button class="seg-btn" data-value="noise">Noise</button>
+      </div>
+    </div>
+
+    <!-- CSS options -->
+    <div class="sub-panel hidden" id="panel-css">
+      <label class="field-label">Color Theme</label>
+      <div class="segmented" id="css-preset-seg">
+        <button class="seg-btn active" data-value="aurora">Aurora</button>
+        <button class="seg-btn" data-value="sunset">Sunset</button>
+        <button class="seg-btn" data-value="ocean">Ocean</button>
+        <button class="seg-btn" data-value="forest">Forest</button>
+        <button class="seg-btn" data-value="fire">Fire</button>
+      </div>
+    </div>
+
+    <!-- Video options -->
+    <div class="sub-panel hidden" id="panel-video">
+      <label class="field-label">Video URL or Upload</label>
+      <input type="url" id="video-url" placeholder="https://…mp4" class="text-input" />
+      <label class="upload-btn">
+        📁 Upload video
+        <input type="file" id="video-file" accept="video/*" hidden />
+      </label>
+    </div>
+
+    <!-- Static options -->
+    <div class="sub-panel hidden" id="panel-static">
+      <label class="field-label">Image URL or Upload</label>
+      <input type="url" id="static-url" placeholder="https://…jpg" class="text-input" />
+      <label class="upload-btn">
+        📁 Upload image
+        <input type="file" id="static-file" accept="image/*" hidden />
+      </label>
+    </div>
+
+    <div class="divider"></div>
+
+
+
+    <label class="field-label">Brightness
+      <span class="badge" id="brightness-val">100%</span>
+    </label>
+    <input type="range" id="brightness" min="0" max="100" value="100" class="slider" />
+
+    <label class="field-label">Blur Intensity
+      <span class="badge" id="blur-val">0px</span>
+    </label>
+    <input type="range" id="blur" min="0" max="20" value="0" class="slider" />
+  </section>
+
+  <!-- ═══════ WIDGETS TAB ══════════════════════════════════ -->
+  <section class="tab-content" id="tab-widgets">
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">🕐 Clock</div>
+        <div class="toggle-sub">Show clock on new tab</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="show-clock" checked />
+        <span class="slider-track"></span>
+      </label>
+    </div>
+
+    <div class="sub-panel" id="clock-options">
+      <label class="field-label">Format</label>
+      <div class="segmented">
+        <button class="seg-btn active" data-group="clock-fmt" data-value="12h">12h</button>
+        <button class="seg-btn" data-group="clock-fmt" data-value="24h">24h</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">🔗 Quick Links</div>
+        <div class="toggle-sub">Shortcut tiles</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="show-quick-links" checked />
+        <span class="slider-track"></span>
+      </label>
+    </div>
+
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">🔗 Quick Links</div>
+        <div class="toggle-sub">Shortcut tiles</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="show-quick-links" checked />
+        <span class="slider-track"></span>
+      </label>
+    </div>
+  </section>
+
+  <!-- ═══════ SEARCH TAB ════════════════════════════════════ -->
+  <section class="tab-content" id="tab-search">
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">🔍 Search Bar</div>
+        <div class="toggle-sub">Show on new tab</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="show-search" checked />
+        <span class="slider-track"></span>
+      </label>
+    </div>
+
+    <div class="divider"></div>
+
+    <label class="field-label">Search Engine</label>
+    <div class="engine-grid" id="engine-grid">
+      <button class="engine-btn active" data-value="google">
+        <span>🔍</span> Google
+      </button>
+      <button class="engine-btn" data-value="bing">
+        <span>🅱️</span> Bing
+      </button>
+      <button class="engine-btn" data-value="duckduckgo">
+        <span>🦆</span> DuckDuckGo
+      </button>
+      <button class="engine-btn" data-value="brave">
+        <span>🦁</span> Brave
+      </button>
+    </div>
+  </section>
+
+  <!-- ═══════ LINKS TAB ═════════════════════════════════════ -->
+  <section class="tab-content" id="tab-links">
+    <p class="hint">Customize your quick link tiles</p>
+    <div id="links-list"></div>
+    <button class="add-link-btn" id="add-link-btn">＋ Add Link</button>
+  </section>
+
+  <footer>
+    <button id="save-btn" class="save-btn">✓ Save &amp; Apply</button>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

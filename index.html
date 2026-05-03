@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LiveTab — Localhost Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="newtab/newtab.css?v=10_final" />
+  <link rel="stylesheet" href="newtab/sidepanel.css?v=10_final" />
+</head>
+<body>
+
+  <!-- ── WALLPAPER LAYER ────────────────────────── -->
+  <div id="wallpaper-container">
+    <video id="video-wallpaper" muted loop playsinline autoplay></video>
+    <canvas id="webgl-canvas"></canvas>
+    <div id="css-wallpaper"></div>
+    <img id="static-wallpaper" alt="" />
+    <div id="wallpaper-overlay"></div>
+  </div>
+
+  <!-- ── WIDGET LAYER ───────────────────────────── -->
+  <div id="widget-layer">
+
+    <!-- Clock -->
+    <div id="clock-widget" class="widget draggable-widget" style="display:none">
+      <div id="clock-time">00:00:00</div>
+    </div>
+    <div id="date-widget" class="widget draggable-widget" style="display:none">
+      <div id="clock-date">Friday, 27 March 2026</div>
+    </div>
+
+    <!-- Search -->
+    <div id="search-widget" class="widget glass draggable-widget" style="display:none">
+      <div id="search-bar-wrap">
+        <span id="search-engine-icon">🔍</span>
+        <input id="search-input" type="text" placeholder="Search the web…" autocomplete="off" spellcheck="false" />
+        <div id="search-actions-group">
+          <button id="search-clear-btn" aria-label="Clear Search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <div id="search-divider"></div>
+          <button id="search-btn" aria-label="Search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="resize-handle" data-widget="search-widget"></div>
+    </div>
+
+    <!-- Quick links -->
+    <div id="quicklinks-widget" class="draggable-widget" style="display:none">
+      <div id="quicklinks-grid"></div>
+      <div class="resize-handle" data-widget="quicklinks-widget"></div>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT-EDGE SETTINGS PANEL ────────────────────────── -->
+  <div id="panel-trigger"></div>
+  <div id="panel-lock-message" style="display:none; position:fixed; right:20px; top:50%; transform:translateY(-50%); background:var(--glass-bg); backdrop-filter:blur(10px); border:1px solid var(--glass-border); padding:6px 12px; border-radius:8px; z-index:1000; color:var(--text); opacity:0; transition:opacity 0.3s ease; pointer-events:none; font-size:0.85rem; text-align:center;">
+    Press <strong id="panel-lock-key" style="color:var(--accent);">Alt+S</strong> to open
+  </div>
+
+  <aside id="settings-panel" role="complementary" aria-label="LiveTab Settings">
+    
+    <!-- Custom Branded Logo -->
+    <div class="sp-header-branding">
+      <svg class="sp-brand-logo" viewBox="0 0 24 24">
+        <path d="M4 4v16h16" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <circle cx="16" cy="8" r="3" fill="var(--sp-accent)"/>
+      </svg>
+    </div>
+
+    <!-- ── WALLPAPER ────────────────────────────── -->
+    <div class="sp-section">
+      <div class="sp-section-title">Wallpaper</div>
+      
+      <div class="sp-row">
+        <label class="sp-action-btn" title="Upload custom image or video">
+          <svg class="sp-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          <span>Upload Wallpaper</span>
+          <input type="file" id="sp-wp-upload" accept="image/*,video/*" hidden />
+        </label>
+      </div>
+
+      <button id="sp-defaults-toggle" class="sp-action-btn" style="margin-top:8px;">
+        <svg class="sp-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2"/></svg>
+        <span>Default Wallpapers</span>
+        <span class="sp-chevron">▼</span>
+      </button>
+
+      <div id="sp-defaults-list" style="display:none; margin-top:8px;">
+        <div class="sp-wallpaper-grid">
+          <button class="sp-wp-card" data-type="webgl" data-preset="fluid">Fluid</button>
+          <button class="sp-wp-card" data-type="webgl" data-preset="galaxy">Galaxy</button>
+          <button class="sp-wp-card" data-type="webgl" data-preset="noise">Noise</button>
+          <button class="sp-wp-card" data-type="css" data-preset="aurora">Aurora</button>
+          <button class="sp-wp-card" data-type="css" data-preset="sunset">Sunset</button>
+          <button class="sp-wp-card" data-type="css" data-preset="ocean">Ocean</button>
+          <button class="sp-wp-card" data-type="css" data-preset="forest">Forest</button>
+          <button class="sp-wp-card" data-type="css" data-preset="fire">Fire</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ADJUSTMENTS ──────────────────────────── -->
+    <div class="sp-section">
+      <div class="sp-section-title">Adjustments</div>
+      <div class="sp-adjustments">
+
+        <div class="sp-slider-row">
+          <div class="sp-slider-header">
+            <span class="sp-slider-label">Blur Intensity</span>
+            <span class="sp-slider-val" id="sp-blur-val">0px</span>
+          </div>
+          <input type="range" id="sp-blur" min="0" max="20" value="0" class="sp-slider" />
+        </div>
+
+        <div class="sp-slider-row">
+          <div class="sp-slider-header">
+            <span class="sp-slider-label">Brightness</span>
+            <span class="sp-slider-val" id="sp-brightness-val">100%</span>
+          </div>
+          <input type="range" id="sp-brightness" min="0" max="100" value="100" class="sp-slider" />
+        </div>
+
+
+
+      </div>
+    </div>
+
+    <!-- ── CUSTOMIZATION ───────────────────────── -->
+    <div class="sp-section">
+      <div class="sp-section-title">Theme Customization</div>
+      <div class="sp-row">
+        <span class="sp-label">Accent Color</span>
+        <div id="sp-color-toggle" class="sp-color-picker-wrap"></div>
+      </div>
+
+      <div id="sp-color-card" class="sp-color-card" style="display:none;">
+        <div id="sp-card-title" class="sp-card-header">Adjust Color</div>
+        <div id="sp-custom-picker-ui" class="sp-custom-picker-ui">
+          <div id="sp-picker-sat-field" class="sp-picker-sat-field">
+            <div class="sp-picker-white"></div>
+            <div class="sp-picker-black"></div>
+            <div id="sp-picker-cursor" class="sp-picker-cursor"></div>
+          </div>
+          <div class="sp-picker-hue-wrap">
+            <input type="range" id="sp-picker-hue-slider" class="sp-picker-hue-slider" min="0" max="360" value="160">
+          </div>
+        </div>
+        <div class="sp-picker-footer">
+          <div class="sp-picker-preview-wrap">
+            <div id="sp-picker-color-preview" class="sp-picker-color-preview"></div>
+            <input type="text" id="sp-picker-hex-input" class="sp-picker-hex-input" value="#10B981" spellcheck="false">
+          </div>
+        </div>
+        <button id="sp-color-close" class="sp-color-close-btn">Done</button>
+      </div>
+
+      <div class="sp-toggle-row">
+        <span class="sp-toggle-label">Accent Gradient</span>
+        <label class="sp-switch"><input type="checkbox" id="sp-accent-gradient" /><span class="sp-track"></span></label>
+      </div>
+      <div id="sp-gradient-controls" style="display:none; margin-top:10px;">
+        <div class="sp-row">
+          <span class="sp-label">Secondary Accent</span>
+          <div id="sp-main-color2-preview" class="sp-color-picker-wrap"></div>
+        </div>
+        <div class="sp-slider-row">
+          <div class="sp-slider-header">
+            <span class="sp-slider-label">Gradient Intensity</span>
+            <span class="sp-slider-val" id="sp-gr-i-val">20%</span>
+          </div>
+          <input type="range" id="sp-gradient-intensity" min="0" max="60" value="20" class="sp-slider" />
+        </div>
+        <div class="sp-slider-row">
+          <div class="sp-slider-header">
+            <span class="sp-slider-label">Gradient Angle</span>
+            <span class="sp-slider-val" id="sp-gr-a-val">135°</span>
+          </div>
+          <input type="range" id="sp-gradient-angle" min="0" max="360" value="135" class="sp-slider" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WIDGETS ─────────────────────────────── -->
+    <div class="sp-section">
+      <div class="sp-section-title">Widgets</div>
+      <div class="sp-widgets">
+
+        <div class="sp-toggle-row">
+          <span class="sp-toggle-label"><svg class="sp-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>Clock</span>
+          <label class="sp-switch"><input type="checkbox" id="sp-clock" checked /><span class="sp-track"></span></label>
+        </div>
+        <div class="sp-clock-fmt" id="sp-clock-fmt">
+          <button class="sp-fmt-btn active" data-val="12h">12h</button>
+          <button class="sp-fmt-btn" data-val="24h">24h</button>
+        </div>
+        <div class="sp-clock-extras">
+          <div class="sp-toggle-row sp-sub-row">
+            <span class="sp-toggle-label"><svg class="sp-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 7v5" stroke="currentColor" stroke-width="2" fill="none"/></svg>Show Seconds</span>
+            <label class="sp-switch"><input type="checkbox" id="sp-show-seconds" checked /><span class="sp-track"></span></label>
+          </div>
+          <div class="sp-toggle-row sp-sub-row">
+            <span class="sp-toggle-label"><svg class="sp-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M3 10h18M8 2v4M16 2v4" stroke="currentColor" stroke-width="2"/></svg>Show Date</span>
+            <label class="sp-switch"><input type="checkbox" id="sp-show-date" checked /><span class="sp-track"></span></label>
+          </div>
+        </div>
+
+        <div class="sp-toggle-row">
+          <span class="sp-toggle-label"><svg class="sp-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke="currentColor" stroke-width="2"/></svg>Quick Links</span>
+          <label class="sp-switch"><input type="checkbox" id="sp-links" checked /><span class="sp-track"></span></label>
+        </div>
+
+        <div class="sp-toggle-row">
+          <span class="sp-toggle-label"><svg class="sp-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" fill="none"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="2"/></svg>Search Bar</span>
+          <label class="sp-switch"><input type="checkbox" id="sp-search" checked /><span class="sp-track"></span></label>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── LAYOUT ───────────────────────────────── -->
+    <div class="sp-section">
+      <div class="sp-section-title">Layout & Panel</div>
+      <div class="sp-widgets">
+        <div class="sp-toggle-row">
+          <span class="sp-toggle-label"><svg class="sp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Edit Widget Positions</span>
+          <label class="sp-switch"><input type="checkbox" id="sp-edit-layout" /><span class="sp-track"></span></label>
+        </div>
+        <div class="sp-toggle-row">
+          <span class="sp-toggle-label"><svg class="sp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Lock Settings Panel</span>
+          <label class="sp-switch"><input type="checkbox" id="sp-lock-panel" /><span class="sp-track"></span></label>
+        </div>
+        <div class="sp-row" id="sp-shortcut-row" style="display:none; align-items:center; margin-top: 8px;">
+          <span class="sp-label" style="font-size: 0.8rem; color: var(--text-muted);">Shortcut Key:</span>
+          <input type="text" id="sp-panel-shortcut" value="Alt+S" readonly style="width: 80px; text-align: center; margin-left: auto; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:4px 8px; border-radius:6px; cursor:pointer;" title="Click to record new shortcut" />
+        </div>
+      </div>
+      <button class="sp-action-btn sp-reset-layout-btn" id="sp-reset-layout-btn" style="margin-top:12px">
+        <svg class="sp-icon" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        <span>Reset Layout to Default</span>
+      </button>
+    </div>
+
+    <!-- ── QUICK LINKS EDITOR ──────────────────── -->
+    <div class="sp-section">
+      <div class="sp-section-title">Quick Links</div>
+      <div id="sp-links-list"></div>
+      <button class="sp-add-link" id="sp-add-link-btn">
+        <svg class="sp-icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="3" fill="none"/></svg>
+        Add Link
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ── Scripts ─────────────────────────────── -->
+  <script src="widgets/clock.js"></script>
+  <script src="widgets/quicklinks.js"></script>
+  <script src="widgets/search.js"></script>
+  <script src="newtab/video-wallpaper.js"></script>
+  <script src="newtab/css-wallpaper.js"></script>
+  <script src="newtab/webgl-wallpaper.js"></script>
+  <script src="newtab/wallpaper-engine.js"></script>
+  <script src="newtab/newtab.js"></script>
+  <script src="newtab/sidepanel.js"></script>
+</body>
+</html>
