@@ -40,6 +40,10 @@
     panelShortcut: 'Alt+S',
     clockFontUrl: '',
     dateFontUrl: '',
+    othersFontUrl: '',
+    clockFontName: '',
+    dateFontName: '',
+    othersFontName: '',
     quickLinks: [
       { title: 'YouTube', url: 'https://youtube.com', logo: '' },
       { title: 'GitHub', url: 'https://github.com', logo: '' },
@@ -65,7 +69,7 @@
       });
     } else {
       for (const k of Object.keys(DEFAULT_SETTINGS)) {
-        if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl'].includes(k) && window.__IDB) {
+        if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(k) && window.__IDB) {
           s[k] = await window.__IDB.get(k, getS(k, DEFAULT_SETTINGS[k]));
         } else {
           s[k] = getS(k, DEFAULT_SETTINGS[k]);
@@ -83,7 +87,7 @@
         console.warn('[LiveTab] localStorage quota exceeded, falling back to chrome.storage/IDB');
       }
     }
-    if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl'].includes(key) && window.__IDB) {
+    if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(key) && window.__IDB) {
       await window.__IDB.set(key, value);
     }
     if (typeof chrome !== 'undefined' && chrome.storage) {
@@ -258,31 +262,71 @@
     });
   }
 
-  const clockFontUpload = document.getElementById('sp-clock-font-upload');
-  if (clockFontUpload) {
-    clockFontUpload.addEventListener('change', e => {
+  const setupFontUpload = (type) => {
+    const upload = document.getElementById(`sp-${type}-font-upload`);
+    const clear = document.getElementById(`sp-${type}-font-clear`);
+    if (upload) {
+      upload.addEventListener('change', e => {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const url = ev.target.result;
+          const fontKey = `${type}FontUrl`;
+          const nameKey = `${type}FontName`;
+          // Update __currentSettings FIRST so __loadCustomFonts reads new value
+          if (window.__currentSettings) {
+            window.__currentSettings[fontKey] = url;
+            window.__currentSettings[nameKey] = file.name;
+          }
+          mergeSettings({ [fontKey]: url, [nameKey]: file.name });
+          if (window.__loadCustomFonts) window.__loadCustomFonts();
+        };
+        reader.readAsDataURL(file);
+        e.target.value = ''; // Reset input to allow re-uploading the same file
+      });
+    }
+    if (clear) {
+      clear.addEventListener('click', () => {
+        const fontKey = `${type}FontUrl`;
+        const nameKey = `${type}FontName`;
+        if (window.__currentSettings) {
+          window.__currentSettings[fontKey] = '';
+          window.__currentSettings[nameKey] = '';
+        }
+        mergeSettings({ [fontKey]: '', [nameKey]: '' });
+        if (window.__loadCustomFonts) window.__loadCustomFonts();
+      });
+    }
+  };
+  setupFontUpload('clock');
+  setupFontUpload('date');
+  setupFontUpload('others');
+
+  const searchLogoUpload = document.getElementById('sp-search-logo-upload');
+  if (searchLogoUpload) {
+    searchLogoUpload.addEventListener('change', e => {
       const file = e.target.files[0]; if (!file) return;
       const reader = new FileReader();
       reader.onload = ev => {
         const url = ev.target.result;
-        mergeSettings({ clockFontUrl: url });
-        if (window.__loadCustomFonts) window.__loadCustomFonts();
+        mergeSettings({ searchLogoUrl: url });
+        if (window.__search) window.__search.applySettings({ searchLogoUrl: url });
+        // Show clear button
+        const clearBtn = document.getElementById('sp-search-logo-clear');
+        if (clearBtn) clearBtn.style.display = 'flex';
       };
       reader.readAsDataURL(file);
+      e.target.value = '';
     });
   }
-
-  const dateFontUpload = document.getElementById('sp-date-font-upload');
-  if (dateFontUpload) {
-    dateFontUpload.addEventListener('change', e => {
-      const file = e.target.files[0]; if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const url = ev.target.result;
-        mergeSettings({ dateFontUrl: url });
-        if (window.__loadCustomFonts) window.__loadCustomFonts();
-      };
-      reader.readAsDataURL(file);
+  const searchLogoClear = document.getElementById('sp-search-logo-clear');
+  if (searchLogoClear) {
+    // Set initial visibility
+    searchLogoClear.style.display = window.__currentSettings?.searchLogoUrl ? 'flex' : 'none';
+    searchLogoClear.addEventListener('click', () => {
+      mergeSettings({ searchLogoUrl: '' });
+      if (window.__search) window.__search.applySettings({ searchLogoUrl: '', searchEngine: window.__currentSettings?.searchEngine || 'google' });
+      searchLogoClear.style.display = 'none';
     });
   }
 
@@ -433,10 +477,14 @@
     const btn = document.getElementById('search-btn');
     if (!sw) return;
     const w = s.searchWidth || 640;
-    const h = s.searchHeight || 48;
+    const h = s.searchHeight || 52;
     sw.style.maxWidth = w + 'px';
     if (si && btn) {
       si.style.height = h + 'px';
+      // Drive font size via CSS variable so it's consistent with layoutWidgets
+      const scaledRem = Math.max(0.9, Math.min(1.8, 1.5 * (h / 52)));
+      document.documentElement.style.setProperty('--search-font-size', scaledRem.toFixed(2) + 'rem');
+      si.style.fontSize = ''; // Clear any previously set inline style
       const btnSize = Math.max(28, h - 8);
       btn.style.height = btnSize + 'px'; btn.style.width = btnSize + 'px';
     }
@@ -455,26 +503,90 @@
     links.forEach((link, i) => {
       const item = document.createElement('div');
       item.className = 'sp-link-item';
+      item.dataset.linkIndex = i;
+      const hasCustomLogo = !!link.logo;
       const favicon = link.logo || getFavicon(link.url);
       item.innerHTML = `
         <div class="sp-link-row1">
-          <label class="sp-logo-btn">
-            ${favicon ? `<img src="${favicon}" />` : '<span>🔗</span>'}
-            <input type="file" accept="image/*" class="sp-logo-file" hidden />
-          </label>
+          <div class="sp-logo-wrap" style="position:relative;">
+            <label class="sp-logo-btn">
+              ${favicon ? `<img src="${favicon}" class="sp-logo-img" />` : '<span class="sp-logo-emoji">🔗</span>'}
+              <input type="file" accept="image/*" class="sp-logo-file" hidden />
+            </label>
+            <button class="sp-logo-clear" title="Remove custom logo" style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:rgba(255,80,80,0.9);border:none;color:#fff;cursor:pointer;font-size:0.6rem;${hasCustomLogo ? 'display:flex' : 'display:none'};align-items:center;justify-content:center;line-height:1;z-index:2;">✕</button>
+          </div>
           <input class="sp-link-name-input" type="text" value="${link.title.replace(/"/g,'&quot;')}" />
           <button class="sp-link-remove">✕</button>
         </div>
         <input class="sp-link-url-input" type="url" value="${link.url}" />
       `;
+
+      // ── Logo upload: targeted patch of this item only ──
       item.querySelector('.sp-logo-file').addEventListener('change', e => {
         const file = e.target.files[0]; if (!file) return;
         const reader = new FileReader();
-        reader.onload = ev => { links[i].logo = ev.target.result; renderLinks(links); updateLinks(links); };
+        reader.onload = ev => {
+          links[i].logo = ev.target.result;
+          // Patch this item's icon without full re-render
+          const logoWrap = item.querySelector('.sp-logo-btn');
+          let img = item.querySelector('.sp-logo-img');
+          const emojiEl = item.querySelector('.sp-logo-emoji');
+          if (emojiEl) emojiEl.remove();
+          if (!img) {
+            img = document.createElement('img');
+            img.className = 'sp-logo-img';
+            logoWrap.prepend(img);
+          }
+          img.src = ev.target.result;
+          // Show clear button
+          item.querySelector('.sp-logo-clear').style.display = 'flex';
+          // Update the actual widget on screen via QuickLinks
+          updateLinks(links);
+        };
         reader.readAsDataURL(file);
+        e.target.value = '';
       });
+
+      // ── Logo clear: patch only this item ──
+      item.querySelector('.sp-logo-clear').addEventListener('click', (e) => {
+        e.stopPropagation();
+        links[i].logo = '';
+        const logoWrap = item.querySelector('.sp-logo-btn');
+        // Remove existing icon
+        item.querySelectorAll('.sp-logo-img, .sp-logo-emoji').forEach(el => el.remove());
+        // Show emoji immediately as placeholder
+        const placeholder = document.createElement('span');
+        placeholder.className = 'sp-logo-emoji';
+        placeholder.textContent = '🔗';
+        logoWrap.prepend(placeholder);
+        item.querySelector('.sp-logo-clear').style.display = 'none';
+        // Then try to load favicon in background — swap if successful
+        const faviconUrl = getFavicon(links[i].url);
+        if (faviconUrl) {
+          const testImg = new Image();
+          testImg.onload = () => {
+            placeholder.remove();
+            const img = document.createElement('img');
+            img.className = 'sp-logo-img';
+            img.src = faviconUrl;
+            logoWrap.prepend(img);
+          };
+          // If favicon fails, the emoji placeholder stays
+          testImg.src = faviconUrl;
+        }
+        updateLinks(links);
+      });
+
+      // Immediate URL update; debounced name update to avoid flicker on re-render
       item.querySelector('.sp-link-url-input').addEventListener('input', e => { links[i].url = e.target.value; updateLinks(links); });
-      item.querySelector('.sp-link-name-input').addEventListener('input', e => { links[i].title = e.target.value; updateLinks(links); });
+      const nameInput = item.querySelector('.sp-link-name-input');
+      let _nameTimer;
+      nameInput.addEventListener('input', e => {
+        links[i].title = e.target.value;
+        clearTimeout(_nameTimer);
+        _nameTimer = setTimeout(() => updateLinks(links), 400);
+      });
+      nameInput.addEventListener('blur', e => { links[i].title = e.target.value; updateLinks(links); });
       item.querySelector('.sp-link-remove').addEventListener('click', () => { links.splice(i, 1); renderLinks(links); updateLinks(links); });
       linksContainer.appendChild(item);
     });

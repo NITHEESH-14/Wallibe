@@ -141,7 +141,7 @@
     <div class="sp-section">
       <div class="sp-section-title">Theme Customization</div>
       <div class="sp-row">
-        <span class="sp-label">Accent Color</span>
+        <span class="sp-label">Primary Color</span>
         <div id="sp-color-toggle" class="sp-color-picker-wrap"></div>
       </div>
 
@@ -172,7 +172,7 @@
       </div>
       <div id="sp-gradient-controls" style="display:none; margin-top:10px;">
         <div class="sp-row">
-          <span class="sp-label">Secondary Accent</span>
+          <span class="sp-label">Secondary Color</span>
           <div id="sp-main-color2-preview" class="sp-color-picker-wrap"></div>
         </div>
         <div class="sp-slider-row">
@@ -224,6 +224,51 @@
         <div class="sp-toggle-row">
           <span class="sp-toggle-label"><svg class="sp-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" fill="none"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="2"/></svg>Search Bar</span>
           <label class="sp-switch"><input type="checkbox" id="sp-search" checked /><span class="sp-track"></span></label>
+        </div>
+        <div class="sp-engine-row" id="sp-engine-row" style="margin-top: 4px; margin-bottom: 8px;">
+          <button class="sp-engine-btn active" data-val="google">Google</button>
+          <button class="sp-engine-btn" data-val="bing">Bing</button>
+          <button class="sp-engine-btn" data-val="duckduckgo">DuckDuckGo</button>
+          <button class="sp-engine-btn" data-val="brave">Brave</button>
+          <div style="grid-column: span 2; display: flex; align-items: center; gap: 6px;">
+            <label class="sp-action-btn" title="Upload Custom Search Logo" style="flex:1; justify-content: center; font-size: 0.72rem; padding: 6px;">
+              <span>Upload Custom Logo</span>
+              <input type="file" id="sp-search-logo-upload" accept="image/*" hidden />
+            </label>
+            <button id="sp-search-logo-clear" title="Remove custom logo" style="display:none; background:rgba(255,80,80,0.1); border:none; border-radius:6px; color:#ff7070; width:30px; height:30px; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0;">✕</button>
+          </div>
+        </div>
+
+        <div class="sp-section-title" style="margin-top: 12px; margin-bottom: 4px;">Typography</div>
+        <div class="sp-font-item">
+          <span class="sp-label">Time</span>
+          <div class="sp-font-box">
+            <label class="sp-font-upload" id="sp-clock-font-btn">
+              <span id="sp-clock-font-name">Import Font</span>
+              <input type="file" id="sp-clock-font-upload" accept=".ttf,.otf,.woff,.woff2" hidden />
+            </label>
+            <button class="sp-font-clear" id="sp-clock-font-clear" title="Reset to default">✕</button>
+          </div>
+        </div>
+        <div class="sp-font-item">
+          <span class="sp-label">Date</span>
+          <div class="sp-font-box">
+            <label class="sp-font-upload" id="sp-date-font-btn">
+              <span id="sp-date-font-name">Import Font</span>
+              <input type="file" id="sp-date-font-upload" accept=".ttf,.otf,.woff,.woff2" hidden />
+            </label>
+            <button class="sp-font-clear" id="sp-date-font-clear" title="Reset to default">✕</button>
+          </div>
+        </div>
+        <div class="sp-font-item">
+          <span class="sp-label">Others</span>
+          <div class="sp-font-box">
+            <label class="sp-font-upload" id="sp-others-font-btn">
+              <span id="sp-others-font-name">Import Font</span>
+              <input type="file" id="sp-others-font-upload" accept=".ttf,.otf,.woff,.woff2" hidden />
+            </label>
+            <button class="sp-font-clear" id="sp-others-font-clear" title="Reset to default">✕</button>
+          </div>
         </div>
 
       </div>

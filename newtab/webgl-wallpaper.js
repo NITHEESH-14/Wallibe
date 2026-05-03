@@ -45,6 +45,11 @@ class WebGLWallpaper {
 
     if (!this.gl) {
       console.warn('[LiveTab] WebGL unavailable, falling back to CSS wallpaper');
+      // Update settings to reflect the fallback
+      if (window.__currentSettings) {
+        window.__currentSettings.wallpaperType = 'css';
+        window.__currentSettings.cssPreset = 'aurora';
+      }
       const css = new CSSWallpaper(this.settings);
       await css.mount();
       return;
@@ -111,8 +116,8 @@ class WebGLWallpaper {
       gl.drawArrays(gl.TRIANGLES, 0, 3);
 
       framesRendered++;
-      // Capture a thumbnail after ~1 second (60 frames) directly from the active backbuffer
-      if (framesRendered === 60) {
+      // Capture a thumbnail after ~0.5 second (30 frames) directly from the active backbuffer
+      if (framesRendered === 30) {
         try {
           const thumb = document.createElement('canvas');
           thumb.width = this.canvas.width / 4;

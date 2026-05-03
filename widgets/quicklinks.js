@@ -16,6 +16,11 @@ class QuickLinksWidget {
   }
 
   _render(links) {
+    // Track which link widget IDs already existed (to suppress re-animation)
+    const existingIds = new Set(
+      Array.from(document.querySelectorAll('.single-link-widget')).map(el => el.id)
+    );
+
     // Remove any previously injected link widgets
     document.querySelectorAll('.single-link-widget').forEach(el => el.remove());
 
@@ -24,14 +29,14 @@ class QuickLinksWidget {
     const layer = document.getElementById('widget-layer');
     if (!layer) return;
 
-    const total = links.length;
-
     links.forEach((link, i) => {
       const widgetId = 'link-widget-' + i;
 
       const widget = document.createElement('div');
       widget.id = widgetId;
       widget.className = 'widget draggable-widget single-link-widget';
+      // Suppress animation for widgets that were already on screen
+      if (existingIds.has(widgetId)) widget.classList.add('no-animate');
 
       const a = document.createElement('a');
       a.className = 'quicklink-item';
@@ -42,14 +47,21 @@ class QuickLinksWidget {
       widget.appendChild(a);
       layer.appendChild(widget);
 
-      // Set default position if none saved — all links start at center
+      // Set default position — pixel-accurate centering of the entire group
       try {
         const saved = JSON.parse(localStorage.getItem('lt_widgetPositions') || '{}');
         if (!saved[widgetId]) {
+          const total = links.length;
+          const linkWidth = 72;  // px — matches .quicklink-item width
+          const gap = 20;        // px gap between each link
+          const stride = linkWidth + gap;
+          const groupWidth = total * linkWidth + (total - 1) * gap;
+          const vw = window.innerWidth;
+          const groupLeftPx = (vw - groupWidth) / 2;
           saved[widgetId] = {
-            left: 50,
-            top: 78,
-            anchorX: 'center',
+            left: ((groupLeftPx + i * stride) / vw) * 100,
+            top: 72,
+            anchorX: 'left',
             anchorY: 'top'
           };
           localStorage.setItem('lt_widgetPositions', JSON.stringify(saved));
@@ -117,21 +129,41 @@ class QuickLinksWidget {
   }
 
   applySettings(s) {
-    let needsRender = false;
-    if (s.showQuickLinks !== this.settings.showQuickLinks) needsRender = true;
-    
-    const oldLinks = JSON.stringify(this.settings.quickLinks || []);
-    const newLinks = JSON.stringify(s.quickLinks || []);
-    if (oldLinks !== newLinks) needsRender = true;
-    
-    this.settings = { ...this.settings, ...s };
-    
-    if (needsRender) {
+    if (s.showQuickLinks !== undefined && s.showQuickLinks !== this.settings.showQuickLinks) {
+      this.settings = { ...this.settings, ...s };
       if (!this.settings.showQuickLinks) {
         document.querySelectorAll('.single-link-widget').forEach(el => el.remove());
       } else {
         this._render(this.settings.quickLinks || []);
       }
+      return;
+    }
+
+    const oldLinks = this.settings.quickLinks || [];
+    const newLinks = s.quickLinks || [];
+
+    // Check if only titles/urls changed (no logo changes, same count) — do targeted DOM update
+    let needsFullRender = oldLinks.length !== newLinks.length;
+    if (!needsFullRender) {
+      for (let i = 0; i < newLinks.length; i++) {
+        if ((oldLinks[i]?.logo || '') !== (newLinks[i]?.logo || '')) { needsFullRender = true; break; }
+      }
+    }
+
+    this.settings = { ...this.settings, ...s };
+
+    if (needsFullRender) {
+      this._render(this.settings.quickLinks || []);
+    } else {
+      // Targeted update: only patch label and href
+      newLinks.forEach((link, i) => {
+        const widget = document.getElementById('link-widget-' + i);
+        if (!widget) return;
+        const label = widget.querySelector('.quicklink-label');
+        const anchor = widget.querySelector('.quicklink-item');
+        if (label && label.textContent !== link.title) label.textContent = link.title;
+        if (anchor) { anchor.href = link.url; anchor.title = link.title; }
+      });
     }
   }
 }

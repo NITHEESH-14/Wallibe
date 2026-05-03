@@ -6,6 +6,18 @@
 
 'use strict';
 
+// ── Sync early init: set CSS vars from localStorage before first paint ──────
+// This prevents FOUC where search bar briefly shows the 1.5rem fallback
+try {
+  const _pos = JSON.parse(localStorage.getItem('lt_widgetPositions') || '{}');
+  const _sp = _pos['search-widget'];
+  if (_sp && _sp.height) {
+    const _h = +_sp.height;
+    const _f = Math.max(0.9, Math.min(1.8, 1.5 * (_h / 52)));
+    document.documentElement.style.setProperty('--search-font-size', _f.toFixed(2) + 'rem');
+  }
+} catch (_) {}
+
 window.__cacheIcon = function(img, domain) {
   if (img.src.startsWith('data:')) return;
   try {
@@ -43,7 +55,7 @@ async function getAllSettings() {
     });
   } else {
     for (const k of Object.keys(DEFAULT_SETTINGS)) {
-      if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl'].includes(k)) {
+      if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(k)) {
         settings[k] = await window.__IDB.get(k, lsGet(k, DEFAULT_SETTINGS[k]));
       } else {
         settings[k] = lsGet(k, DEFAULT_SETTINGS[k]);
@@ -113,6 +125,10 @@ const DEFAULT_SETTINGS = {
   panelShortcut: 'Alt+S',
   clockFontUrl: '',
   dateFontUrl: '',
+  othersFontUrl: '',
+  clockFontName: '',
+  dateFontName: '',
+  othersFontName: '',
   quickLinks: [
     { title: 'YouTube', url: 'https://youtube.com' },
     { title: 'GitHub', url: 'https://github.com' },
@@ -136,6 +152,13 @@ function loadCustomFonts(settings) {
   if (clockUrl) {
     css += `@font-face { font-family: 'LT-ClockFont'; src: url('${clockUrl}'); font-display: block; }\n`;
     css += `#clock-time { font-family: 'LT-ClockFont', 'Outfit', sans-serif !important; }\n`;
+    // Add error handling
+    const font = new FontFace('LT-ClockFont', `url(${clockUrl})`);
+    font.load().catch(() => {
+      console.warn('[LiveTab] Failed to load clock font, falling back to default');
+      const el = document.getElementById('clock-time');
+      if (el) el.style.fontFamily = 'Outfit, Inter, sans-serif';
+    });
   } else {
     css += `#clock-time { font-family: 'Outfit', 'Inter', sans-serif; }\n`;
   }
@@ -145,13 +168,36 @@ function loadCustomFonts(settings) {
   } else {
     css += `#clock-date { font-family: 'Outfit', sans-serif; }\n`;
   }
+  const othersUrl = settings.othersFontUrl;
+  if (othersUrl) {
+    css += `@font-face { font-family: 'LT-OthersFont'; src: url('${othersUrl}'); font-display: block; }\n`;
+    // Only target on-page widgets — NOT settings panel (causes blur with custom fonts)
+    css += `.quicklink-label, #search-input, #search-input::placeholder { font-family: 'LT-OthersFont', 'Inter', sans-serif !important; }\n`;
+    css += `#search-input { line-height: 1 !important; display: flex !important; align-items: center !important; }\n`;
+  } else {
+    css += `#search-input, #search-input::placeholder { font-family: 'Inter', sans-serif; }\n`;
+  }
   styleEl.textContent = css;
 
   // Update label text in settings panel
-  const clockLabel = document.getElementById('sp-clock-font-label');
-  const dateLabel = document.getElementById('sp-date-font-label');
-  if (clockLabel) clockLabel.textContent = clockUrl ? '✓ Font Loaded' : 'Upload Font';
-  if (dateLabel) dateLabel.textContent = dateUrl ? '✓ Font Loaded' : 'Upload Font';
+  const updateUI = (type, url, name) => {
+    const nameEl = document.getElementById(`sp-${type}-font-name`);
+    const btnEl = document.getElementById(`sp-${type}-font-btn`);
+    const clearEl = document.getElementById(`sp-${type}-font-clear`);
+    if (!nameEl || !btnEl || !clearEl) return;
+    if (url) {
+      nameEl.textContent = name || 'Custom Font';
+      btnEl.classList.add('active');
+      clearEl.style.display = 'flex';
+    } else {
+      nameEl.textContent = 'Import Font';
+      btnEl.classList.remove('active');
+      clearEl.style.display = 'none';
+    }
+  };
+  updateUI('clock', clockUrl, settings.clockFontName);
+  updateUI('date', dateUrl, settings.dateFontName);
+  updateUI('others', othersUrl, settings.othersFontName);
 }
 window.__loadCustomFonts = () => {
   if (window.__currentSettings) loadCustomFonts(window.__currentSettings);
@@ -209,7 +255,13 @@ function layoutWidgets() {
       if (s.width && !isNaN(s.width)) {
         if (id === 'search-widget') {
           root.style.setProperty('--search-width', s.width + 'px');
-          if (s.height) root.style.setProperty('--search-height', s.height + 'px');
+          if (s.height) {
+            root.style.setProperty('--search-height', s.height + 'px');
+            // Set font size atomically with height to prevent FOUC
+            const h = +s.height;
+            const fSize = Math.max(0.9, Math.min(1.8, 1.5 * (h / 52)));
+            root.style.setProperty('--search-font-size', fSize.toFixed(2) + 'rem');
+          }
         }
         if (id === 'clock-widget' && s.fontSize) {
           root.style.setProperty('--clock-font-size', s.fontSize + 'rem');
@@ -285,6 +337,25 @@ function resetLayout() {
     el.style.height = '';
     el.style.transform = '';
   });
+
+  // Pre-set link widget default positions (pixel-accurate horizontal row below search bar)
+  const savedPos = {};
+  const linkWidgets = document.querySelectorAll('.single-link-widget');
+  const total = linkWidgets.length;
+  const vw = window.innerWidth;
+  const linkWidth = 72, gap = 20, stride = linkWidth + gap;
+  const groupWidth = total * linkWidth + (total - 1) * gap;
+  const groupLeftPx = (vw - groupWidth) / 2;
+  linkWidgets.forEach((widget, idx) => {
+    savedPos[widget.id] = {
+      left: ((groupLeftPx + idx * stride) / vw) * 100,
+      top: 72,
+      anchorX: 'left',
+      anchorY: 'top'
+    };
+  });
+  lsSet('widgetPositions', savedPos);
+
   layoutWidgets();
 }
 window.__resetLayout = resetLayout;
@@ -369,12 +440,14 @@ function _startDrag(el, clientX, clientY) {
 
 function onDragStart(e) {
   if (e.target.classList.contains('resize-handle')) return;
+  if (['INPUT', 'BUTTON'].includes(e.target.tagName) || e.target.closest('button')) return; // Allow normal clicks on interactive elements
   e.preventDefault();
   _startDrag(e.currentTarget, e.clientX, e.clientY);
 }
 
 function onTouchStart(e) {
   if (e.target.classList.contains('resize-handle')) return;
+  if (['INPUT', 'BUTTON'].includes(e.target.tagName) || e.target.closest('button')) return;
   const touch = e.touches[0];
   if (_startDrag(e.currentTarget, touch.clientX, touch.clientY)) {
     e.preventDefault();
@@ -567,6 +640,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settings = await getAllSettings();
   window.__currentSettings = settings;
 
+  // Preload critical assets
+  if (settings.wallpaperType === 'video' && settings.videoUrl) {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'video';
+    link.href = settings.videoUrl;
+    document.head.appendChild(link);
+  }
+
   // Apply IDB updates if needed (e.g. static/video URLs loaded)
   if (window.__wallpaperEngine && (settings.wallpaperType === 'static' || settings.wallpaperType === 'video')) {
     window.__wallpaperEngine.applySettings(settings);
@@ -577,7 +659,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.documentElement.style.backgroundImage = '';
     document.documentElement.style.backgroundSize = '';
     document.documentElement.style.backgroundPosition = '';
-  }, 800);
+  }, 400); // Reduced from 800ms
 
   // Generate lightweight thumbnail cache for lightning-fast loading on next tab open
   setTimeout(() => {
@@ -593,7 +675,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         localStorage.setItem('lt_wallpaper_cache', thumb.toDataURL('image/jpeg', 0.5));
       }
     } catch(e) {}
-  }, 2500);
+  }, 1000); // Changed from 2500
 
   // Load custom fonts from IDB if user uploaded any
   loadCustomFonts(settings);
@@ -603,6 +685,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.__search = new SearchWidget(settings);
 
   [window.__clock, window.__quicklinks, window.__search].forEach(w => w.init());
+
+  // Add performance monitoring
+  if (performance.timing) {
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+        console.log('[LiveTab] Page load time:', loadTime, 'ms');
+        console.log('[LiveTab] localStorage used:', (JSON.stringify(localStorage).length / 1024).toFixed(2), 'KB');
+      }, 100);
+    });
+  }
 
   attachDragHandlers();
   attachResizeHandlers();

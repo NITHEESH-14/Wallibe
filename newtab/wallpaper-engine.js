@@ -36,15 +36,24 @@ class WallpaperEngine {
 
   async _mount(type) {
     this._hideAll();
+    // Show loading state for better UX
+    document.getElementById('wallpaper-container').classList.add('loading');
+    
     switch (type) {
       case 'video':  this.current = new VideoWallpaper(this.settings);  break;
       case 'webgl':  this.current = new WebGLWallpaper(this.settings);  break;
       case 'css':    this.current = new CSSWallpaper(this.settings);    break;
-      case 'static': this._mountStatic();                               return;
+      case 'static': 
+        this._mountStatic();
+        document.getElementById('wallpaper-container').classList.remove('loading');
+        return;
       default:       this.current = new WebGLWallpaper(this.settings);
     }
     await this.current.mount();
     this._applyOverlay();
+    
+    // Remove loading state
+    document.getElementById('wallpaper-container').classList.remove('loading');
   }
 
   _mountStatic() {
@@ -79,14 +88,12 @@ class WallpaperEngine {
 
   _onVisibility() {
     if (!this.current) return;
-    // Let the browser naturally throttle WebGL (rAF) and CSS animations to preserve the frozen frame.
-    // Only manually pause video playback to save battery/CPU.
-    if (this.settings.wallpaperType === 'video') {
-      if (document.hidden) {
-        this.current.pause && this.current.pause();
-      } else {
-        this.current.resume && this.current.resume();
-      }
+    if (document.hidden) {
+      // Pause all wallpaper types when hidden
+      if (this.current.pause) this.current.pause();
+    } else {
+      // Resume all wallpaper types when visible
+      if (this.current.resume) this.current.resume();
     }
   }
 }
