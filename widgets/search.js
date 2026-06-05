@@ -1,5 +1,5 @@
 /**
- * LiveTab — Search Widget (search.js)
+ * Wallibe — Search Widget (search.js)
  * Multi-engine search bar with / keyboard shortcut.
  */
 

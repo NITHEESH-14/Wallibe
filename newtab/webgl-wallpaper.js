@@ -1,5 +1,5 @@
 /**
- * LiveTab — WebGL Wallpaper (webgl-wallpaper.js)
+ * Wallibe — WebGL Wallpaper (webgl-wallpaper.js)
  * Renders animated GLSL shaders on a canvas.
  * Uses delta-time clamping to prevent spiral-of-death on slow frames.
  * Respects fpsLimit setting (15 / 30 / 60).
@@ -44,7 +44,7 @@ class WebGLWallpaper {
     });
 
     if (!this.gl) {
-      console.warn('[LiveTab] WebGL unavailable, falling back to CSS wallpaper');
+      console.warn('[Wallibe] WebGL unavailable, falling back to CSS wallpaper');
       // Update settings to reflect the fallback
       if (window.__currentSettings) {
         window.__currentSettings.wallpaperType = 'css';
@@ -95,7 +95,7 @@ class WebGLWallpaper {
     gl.shaderSource(shader, src);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      console.error('[LiveTab] Shader compile error:', gl.getShaderInfoLog(shader));
+      console.error('[Wallibe] Shader compile error:', gl.getShaderInfoLog(shader));
     }
     return shader;
   }
@@ -123,7 +123,7 @@ class WebGLWallpaper {
           thumb.width = this.canvas.width / 4;
           thumb.height = this.canvas.height / 4;
           thumb.getContext('2d').drawImage(this.canvas, 0, 0, thumb.width, thumb.height);
-          localStorage.setItem('lt_wallpaper_cache', thumb.toDataURL('image/jpeg', 0.5));
+          localStorage.setItem('wb_wallpaper_cache', thumb.toDataURL('image/jpeg', 0.5));
         } catch(e) {}
       }
     };
@@ -149,7 +149,12 @@ class WebGLWallpaper {
   }
 
   pause()  { this._paused = true;  cancelAnimationFrame(this.rafId); }
-  resume() { this._paused = false; this.lastFrame = 0; this._startLoop(); }
+  resume() {
+    if (!this._paused) return;
+    this._paused = false;
+    this.lastFrame = 0;
+    this._startLoop();
+  }
   destroy() {
     cancelAnimationFrame(this.rafId);
     window.removeEventListener('resize', this._boundResize);

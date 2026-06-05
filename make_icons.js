@@ -1,5 +1,5 @@
 /**
- * LiveTab — Icon generator (resize icon to 16, 48, 128px using Canvas API via node-canvas or
+ * Wallibe — Icon generator (resize icon to 16, 48, 128px using Canvas API via node-canvas or
  * manual pixel copy using sharp if available, otherwise just copy the source as all sizes).
  * This script uses only built-in Node.js modules to avoid needing npm install.
  */

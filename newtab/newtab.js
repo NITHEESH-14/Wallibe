@@ -1,5 +1,5 @@
 /**
- * LiveTab — newtab.js
+ * Wallibe — newtab.js
  * Main orchestrator: loads settings, inits wallpaper engine + all widgets.
  * Includes draggable widget positioning + direct resize (activated via settings panel toggle).
  */
@@ -9,7 +9,7 @@
 // ── Sync early init: set CSS vars from localStorage before first paint ──────
 // This prevents FOUC where search bar briefly shows the 1.5rem fallback
 try {
-  const _pos = JSON.parse(localStorage.getItem('lt_widgetPositions') || '{}');
+  const _pos = JSON.parse(localStorage.getItem('wb_widgetPositions') || '{}');
   const _sp = _pos['search-widget'];
   if (_sp && _sp.height) {
     const _h = +_sp.height;
@@ -26,17 +26,17 @@ window.__cacheIcon = function(img, domain) {
     canvas.height = img.naturalHeight || 32;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
-    localStorage.setItem('lt_icon_' + domain, canvas.toDataURL('image/png'));
+    localStorage.setItem('wb_icon_' + domain, canvas.toDataURL('image/png'));
   } catch (e) {}
 };
 
 // ─── Helpers ─────────────────────────────────────────────
 function lsGet(key, fallback) {
-  try { const v = localStorage.getItem('lt_' + key); return v !== null ? JSON.parse(v) : fallback; }
+  try { const v = localStorage.getItem('wb_' + key); return v !== null ? JSON.parse(v) : fallback; }
   catch (_) { return fallback; }
 }
 function lsSet(key, value) {
-  try { localStorage.setItem('lt_' + key, JSON.stringify(value)); } catch (_) { }
+  try { localStorage.setItem('wb_' + key, JSON.stringify(value)); } catch (_) { }
   if (typeof chrome !== 'undefined' && chrome.storage) chrome.storage.local.set({ [key]: value });
 }
 
@@ -46,23 +46,23 @@ function debounce(fn, ms) {
 }
 
 async function getAllSettings() {
-  const settings = { ...DEFAULT_SETTINGS };
+  const settings = { ...DEFAUwb_SETTINGS };
   if (typeof chrome !== 'undefined' && chrome.storage) {
     const local = await new Promise(res => chrome.storage.local.get(null, res));
-    Object.keys(DEFAULT_SETTINGS).forEach(k => {
+    Object.keys(DEFAUwb_SETTINGS).forEach(k => {
       if (local[k] !== undefined) settings[k] = local[k];
-      else settings[k] = lsGet(k, DEFAULT_SETTINGS[k]);
+      else settings[k] = lsGet(k, DEFAUwb_SETTINGS[k]);
     });
   } else {
-    for (const k of Object.keys(DEFAULT_SETTINGS)) {
+    for (const k of Object.keys(DEFAUwb_SETTINGS)) {
       if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(k)) {
-        settings[k] = await window.__IDB.get(k, lsGet(k, DEFAULT_SETTINGS[k]));
+        settings[k] = await window.__IDB.get(k, lsGet(k, DEFAUwb_SETTINGS[k]));
       } else if (k === 'floatCards') {
         const cached = await window.__IDB.get('floatCards', null);
         if (cached) settings.floatCards = cached;
-        else settings.floatCards = lsGet('floatCards', DEFAULT_SETTINGS.floatCards);
+        else settings.floatCards = lsGet('floatCards', DEFAUwb_SETTINGS.floatCards);
       } else {
-        settings[k] = lsGet(k, DEFAULT_SETTINGS[k]);
+        settings[k] = lsGet(k, DEFAUwb_SETTINGS[k]);
       }
     }
   }
@@ -74,7 +74,7 @@ window.__IDB = {
   init() {
     return new Promise(resolve => {
       if (this.db) return resolve(this.db);
-      const req = indexedDB.open('LiveTabDB', 1);
+      const req = indexedDB.open('WallibeDB', 1);
       req.onupgradeneeded = e => e.target.result.createObjectStore('settings');
       req.onsuccess = e => { this.db = e.target.result; resolve(this.db); };
       req.onerror = () => resolve(null);
@@ -104,7 +104,7 @@ window.__IDB = {
   }
 };
 
-const DEFAULT_SETTINGS = {
+const DEFAUwb_SETTINGS = {
   wallpaperType: 'static',
   webglPreset: 'fluid',
   cssPreset: 'aurora',
@@ -160,7 +160,7 @@ function loadCustomFonts(settings) {
     // Add error handling
     const font = new FontFace('LT-ClockFont', `url(${clockUrl})`);
     font.load().catch(() => {
-      console.warn('[LiveTab] Failed to load clock font, falling back to default');
+      console.warn('[Wallibe] Failed to load clock font, falling back to default');
       const el = document.getElementById('clock-time');
       if (el) el.style.fontFamily = 'Outfit, Inter, sans-serif';
     });
@@ -222,7 +222,7 @@ window.__loadCustomFonts = () => {
 };
 
 /* ── Default widget positions (as % of viewport) ── */
-const DEFAULT_POSITIONS = {
+const DEFAUwb_POSITIONS = {
   'clock-widget':      { left: 50, top: 31, anchorX: 'center' },
   'date-widget':       { left: 50, top: 49, anchorX: 'center' },
   'search-widget':     { left: 50, top: 58, anchorX: 'center' }
@@ -235,19 +235,30 @@ function applyPosition(el, pos, vw, vh, w, h) {
   const rotateDeg = pos.rotate || 0;
   const rotateStr = rotateDeg ? `rotate(${rotateDeg}deg)` : '';
 
+  const layerScale = window.__layerScale || 1;
+  let widgetScale = '';
+  if (el.id === 'search-widget') {
+    // Make search bar 20% larger than original on smaller screens
+    const targetScale = layerScale < 1 ? 1.2 : 1.0;
+    widgetScale = `scale(${targetScale / layerScale})`;
+  } else if (el.classList.contains('single-link-widget')) {
+    widgetScale = `scale(${0.7 + 0.3 / layerScale})`;
+  }
+
   if (pos.anchorX === 'center') {
     el.style.left = '50%';
-    el.style.transform = `translateX(-50%) ${rotateStr}`.trim();
+    el.style.transform = `translateX(-50%) ${rotateStr} ${widgetScale}`.trim();
   } else {
     if (pos.anchorX === 'right') x = vw - w - (pos.left === 0 ? 0 : (1 - pos.left / 100) * vw);
     el.style.left = x + 'px';
-    el.style.transform = rotateStr || 'none';
+    el.style.transform = `${rotateStr} ${widgetScale}`.trim() || 'none';
   }
 
   if (pos.anchorY === 'center' || pos.anchorY === 'middle') y = Math.round((vh - h) / 2);
   else if (pos.anchorY === 'bottom') y = y - h;
 
   el.style.top = y + 'px';
+  el.style.setProperty('--widget-rotate', rotateDeg + 'deg');
 }
 
 function layoutWidgets() {
@@ -263,7 +274,7 @@ function layoutWidgets() {
       const id = el.id;
       if (!id || el.style.display === 'none') return null;
 
-      const s = saved[id] || DEFAULT_POSITIONS[id];
+      const s = saved[id] || DEFAUwb_POSITIONS[id];
       if (!s) return null;
 
       if (s.width && !isNaN(s.width)) {
@@ -298,11 +309,104 @@ function layoutWidgets() {
 
     measurements.forEach(m => applyPosition(m.el, m.pos, vw, vh, m.w, m.h));
 
+    // Global collision detection for all widgets
+    let collisionDetected = false;
+    if (!document.body.classList.contains('edit-layout')) {
+      const activeWidgets = [
+        document.getElementById('clock-widget'),
+        document.getElementById('date-widget'),
+        document.getElementById('search-widget'),
+        ...Array.from(document.querySelectorAll('.single-link-widget')),
+        ...Array.from(document.querySelectorAll('.single-float-card-widget'))
+      ].filter(el => el && el.style.display !== 'none');
+
+      // Get bounding rects for all candidates
+      const rects = activeWidgets.map(el => ({ el, rect: el.getBoundingClientRect() }));
+
+      // Check all pairs for overlap
+      for (let i = 0; i < rects.length; i++) {
+        for (let j = i + 1; j < rects.length; j++) {
+          const r1 = rects[i].rect;
+          const r2 = rects[j].rect;
+          if (r1.width === 0 || r2.width === 0) continue;
+
+          // Check overlap with a small padding/buffer of 10px
+          const padding = 10;
+          const overlap = !(r1.right - padding < r2.left || 
+                            r1.left + padding > r2.right || 
+                            r1.bottom - padding < r2.top || 
+                            r1.top + padding > r2.bottom);
+          if (overlap) {
+            collisionDetected = true;
+            break;
+          }
+        }
+        if (collisionDetected) break;
+      }
+    }
+
+    // Apply visibility states based on collision detection
+    const collidableHideables = [
+      document.getElementById('clock-widget'),
+      document.getElementById('date-widget'),
+      ...Array.from(document.querySelectorAll('.single-float-card-widget'))
+    ];
+
+    collidableHideables.forEach(el => {
+      if (!el) return;
+      if (collisionDetected && !document.body.classList.contains('edit-layout')) {
+        el.style.opacity = '0';
+        el.style.visibility = 'hidden';
+        el.style.pointerEvents = 'none';
+      } else {
+        el.style.opacity = '1';
+        el.style.visibility = 'visible';
+        el.style.pointerEvents = 'all';
+      }
+    });
+
+    const alwaysKeep = [
+      document.getElementById('search-widget'),
+      ...Array.from(document.querySelectorAll('.single-link-widget'))
+    ];
+    alwaysKeep.forEach(el => {
+      if (!el) return;
+      el.style.opacity = '1';
+      el.style.visibility = 'visible';
+      el.style.pointerEvents = 'all';
+    });
+
     if (frameCount < 3) { frameCount++; requestAnimationFrame(pass); }
   };
 
   pass();
 }
+
+window.__layerScale = 1;
+function applyResponsiveScale() {
+  const layer = document.getElementById('widget-layer');
+  if (!layer) return;
+  const baseW = 1280;
+  const vw = window.innerWidth;
+  if (vw < baseW) {
+    window.__layerScale = Math.max(0.5, vw / baseW);
+  } else {
+    window.__layerScale = 1;
+  }
+  layer.style.setProperty('--layer-scale', window.__layerScale);
+  layer.style.transform = `scale(${window.__layerScale})`;
+}
+
+window.addEventListener('resize', () => {
+  applyResponsiveScale();
+  const isSmall = window.innerWidth <= 600;
+  if (isSmall && document.body.classList.contains('edit-layout')) {
+    setEditLayout(false);
+  } else if (!isSmall && lsGet('editLayout', false) && !document.body.classList.contains('edit-layout')) {
+    setEditLayout(true);
+  }
+  layoutWidgets(); // Force collision check and position updates on resize
+});
 
 function savePosition(widgetId) {
   const el = document.getElementById(widgetId);
@@ -359,20 +463,24 @@ function resetLayout() {
 
   // Pre-set link widget default positions (pixel-accurate horizontal row below search bar)
   const savedPos = {};
-  const linkWidgets = document.querySelectorAll('.single-link-widget');
-  const total = linkWidgets.length;
-  const vw = window.innerWidth;
-  const linkWidth = 72, gap = 20, stride = linkWidth + gap;
-  const groupWidth = total * linkWidth + (total - 1) * gap;
-  const groupLeftPx = (vw - groupWidth) / 2;
-  linkWidgets.forEach((widget, idx) => {
-    savedPos[widget.id] = {
-      left: ((groupLeftPx + idx * stride) / vw) * 100,
-      top: 72,
-      anchorX: 'left',
-      anchorY: 'top'
-    };
-  });
+  const linkWidgets = Array.from(document.querySelectorAll('.single-link-widget'));
+  if (linkWidgets.length > 0) {
+    const total = linkWidgets.length;
+    const vw = window.innerWidth;
+    const w = linkWidgets[0].offsetWidth || 72;
+    const gap = vw < 800 ? 30 : 20; // Increased gap on small screens
+    const stride = w + gap;
+    const groupWidth = total * w + (total - 1) * gap;
+    const groupLeftPx = (vw - groupWidth) / 2;
+    linkWidgets.forEach((widget, idx) => {
+      savedPos[widget.id] = {
+        left: ((groupLeftPx + idx * stride) / vw) * 100,
+        top: 72,
+        anchorX: 'left',
+        anchorY: 'top'
+      };
+    });
+  }
   lsSet('widgetPositions', savedPos);
 
   layoutWidgets();
@@ -439,21 +547,38 @@ let _rotating = null;
 
 // ─── Drag handlers ───────────────────────────────────────────
 function _startDrag(el, clientX, clientY) {
+  if (window.innerWidth <= 600) return false;
   if (!document.body.classList.contains('edit-layout')) return false;
   const rect = el.getBoundingClientRect();
 
-  // KEY FIX: Convert from any transform/percentage state to plain px FIRST.
-  // This prevents the one-frame jump when dragging a centered widget.
-  el.style.transform = ''; // clear translateX(-50%) etc
-  el.style.left = rect.left + 'px';
-  el.style.top = rect.top + 'px';
+  const layerRect = document.getElementById('widget-layer').getBoundingClientRect();
+  const scale = window.__layerScale || 1;
+  const unscaledLeft = (rect.left - layerRect.left) / scale;
+  const unscaledTop = (rect.top - layerRect.top) / scale;
+
+  const currentRotate = el.style.getPropertyValue('--widget-rotate') || '0deg';
+  
+  let widgetScale = '';
+  if (el.id === 'search-widget') {
+    const targetScale = scale < 1 ? 1.2 : 1.0;
+    widgetScale = `scale(${targetScale / scale})`;
+  } else if (el.classList.contains('single-link-widget')) {
+    widgetScale = `scale(${0.7 + 0.3 / scale})`;
+  }
+
+  const finalTransform = `${currentRotate} ${widgetScale}`.trim();
+  el.style.transform = finalTransform; 
+  el.style.left = unscaledLeft + 'px';
+  el.style.top = unscaledTop + 'px';
   el.style.transition = 'none';
   el.style.zIndex = '1000';
 
   _dragging = {
     el,
-    offsetX: clientX - rect.left,
-    offsetY: clientY - rect.top
+    offsetX: (clientX - rect.left) / scale,
+    offsetY: (clientY - rect.top) / scale,
+    rotateStr: currentRotate,
+    widgetScale: widgetScale
   };
   return true;
 }
@@ -513,6 +638,7 @@ function attachRotateHandlers() {
     handle._hasRotateListener = true;
     
     const startRotate = e => {
+      if (window.innerWidth <= 600) return;
       if (!document.body.classList.contains('edit-layout')) return;
       e.preventDefault();
       e.stopPropagation();
@@ -544,6 +670,7 @@ window.__attachRotateHandlers = attachRotateHandlers;
 function attachResizeHandlers() {
   document.querySelectorAll('.resize-handle').forEach(handle => {
     const startResize = e => {
+      if (window.innerWidth <= 600) return;
       if (!document.body.classList.contains('edit-layout')) return;
       e.preventDefault();
       e.stopPropagation();
@@ -555,19 +682,25 @@ function attachResizeHandlers() {
       if (!el) return;
       const rect = el.getBoundingClientRect();
       const vw = window.innerWidth;
+      const layerRect = document.getElementById('widget-layer').getBoundingClientRect();
+      const scale = window.__layerScale || 1;
+      const unscaledLeft = (rect.left - layerRect.left) / scale;
+      const unscaledTop = (rect.top - layerRect.top) / scale;
+
       _resizing = {
         el, widgetId,
         startX: clientX, startY: clientY,
         startW: el.offsetWidth, startH: el.offsetHeight,
-        centerX: rect.left + rect.width / 2,
-        centerY: rect.top + rect.height / 2,
+        centerX: unscaledLeft + el.offsetWidth / 2,
+        centerY: unscaledTop + el.offsetHeight / 2,
         wasCentered: el.style.left === '50%' || Math.abs((rect.left + rect.width / 2) - vw / 2) < 15
       };
 
       // Detach transform so px positioning works
-      el.style.transform = '';
-      el.style.left = rect.left + 'px';
-      el.style.top = rect.top + 'px';
+      const currentRotate = el.style.getPropertyValue('--widget-rotate') || '0deg';
+      el.style.transform = currentRotate;
+      el.style.left = unscaledLeft + 'px';
+      el.style.top = unscaledTop + 'px';
     };
     handle.addEventListener('mousedown', startResize, { passive: false });
     handle.addEventListener('touchstart', startResize, { passive: false });
@@ -603,10 +736,12 @@ function handleMove(e) {
     return;
   }
 
+  const scale = window.__layerScale || 1;
+
   if (_resizing) {
     if (isTouch) e.preventDefault();
-    const dw = clientX - _resizing.startX;
-    const dh = clientY - _resizing.startY;
+    const dw = (clientX - _resizing.startX) / scale;
+    const dh = (clientY - _resizing.startY) / scale;
     const isCard = _resizing.widgetId.startsWith('float-card-widget-');
     let minW = isCard ? 30 : 100, minH = isCard ? 30 : 24;
     if (_resizing.widgetId === 'search-widget') { minW = 280; minH = 52; }
@@ -629,7 +764,7 @@ function handleMove(e) {
     const root = document.documentElement;
 
     // Symmetric resizing
-    _resizing.el.style.transform = 'none';
+    _resizing.el.style.transform = _resizing.el.style.getPropertyValue('--widget-rotate') || '0deg';
     _resizing.el.style.maxWidth = 'none'; // Clear panel-imposed max-width during visual drag
     _resizing.el.style.width = newW + 'px';
     _resizing.el.style.left = (_resizing.centerX - newW / 2) + 'px';
@@ -656,10 +791,11 @@ function handleMove(e) {
   if (isTouch) e.preventDefault();
 
   // Simple absolute-coordinate dragging (no transform math needed)
-  let left = clientX - _dragging.offsetX;
-  let top = clientY - _dragging.offsetY;
+  const layerRect = document.getElementById('widget-layer').getBoundingClientRect();
+  let left = ((clientX - layerRect.left) / scale) - _dragging.offsetX;
+  let top = ((clientY - layerRect.top) / scale) - _dragging.offsetY;
 
-  // Constrain to screen boundaries
+  // Constrain to screen boundaries (in unscaled CSS pixels)
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const w = _dragging.el.offsetWidth;
@@ -676,13 +812,13 @@ function handleMove(e) {
 
   _dragging.el.style.left = left + 'px';
   _dragging.el.style.top = top + 'px';
-  _dragging.el.style.transform = ''; // always clear, we use px coords now
+  _dragging.el.style.transform = `${_dragging.rotateStr} ${_dragging.widgetScale}`.trim();
 }
 
 function handleEnd() {
   if (_dragging) {
     savePosition(_dragging.el.id);
-    _dragging.el.style.zIndex = '999';
+    _dragging.el.style.zIndex = '';
     _dragging = null;
   }
   if (_resizing) {
@@ -720,7 +856,9 @@ document.addEventListener('touchend', handleEnd);
 
 
 function setEditLayout(enabled) {
-  document.body.classList.toggle('edit-layout', enabled);
+  const isSmall = window.innerWidth <= 600;
+  const targetEnabled = isSmall ? false : enabled;
+  document.body.classList.toggle('edit-layout', targetEnabled);
   lsSet('editLayout', enabled);
 }
 window.__setEditLayout = setEditLayout;
@@ -730,16 +868,16 @@ window.__layoutWidgets = layoutWidgets;
 // ─── Bootstrap ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   // Prevent any automatic layout resets on new tab load
-  if (!lsGet('position_persistence_v6', false)) {
-    lsSet('position_persistence_v6', true);
+  if (!lsGet('position_persistence_wb', false)) {
+    lsSet('position_persistence_wb', true);
     lsSet('widgetPositions', {});
   }
 
   // Fast synchronous init for non-IDB settings
-  const fastSettings = { ...DEFAULT_SETTINGS };
+  const fastSettings = { ...DEFAUwb_SETTINGS };
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (k.startsWith('lt_')) {
+    if (k.startsWith('wb_')) {
       try { fastSettings[k.slice(3)] = JSON.parse(localStorage.getItem(k)); } catch (_) { }
     }
   }
@@ -748,6 +886,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const settings = await getAllSettings();
   window.__currentSettings = settings;
+
+  applyResponsiveScale();
 
   // Preload critical assets
   if (settings.wallpaperType === 'video' && settings.videoUrl) {
@@ -781,7 +921,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         thumb.width = Math.max(1, (target.videoWidth || target.width || target.naturalWidth || window.innerWidth) / 4);
         thumb.height = Math.max(1, (target.videoHeight || target.height || target.naturalHeight || window.innerHeight) / 4);
         thumb.getContext('2d').drawImage(target, 0, 0, thumb.width, thumb.height);
-        localStorage.setItem('lt_wallpaper_cache', thumb.toDataURL('image/jpeg', 0.5));
+        localStorage.setItem('wb_wallpaper_cache', thumb.toDataURL('image/jpeg', 0.5));
       }
     } catch(e) {}
   }, 1000); // Changed from 2500
@@ -841,12 +981,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         layer.appendChild(widget);
         
         try {
-          const saved = JSON.parse(localStorage.getItem('lt_widgetPositions') || '{}');
+          const saved = JSON.parse(localStorage.getItem('wb_widgetPositions') || '{}');
           if (!saved[widgetId]) {
             // Stack below each other: start at 15%, then add 20% height + 2% gap for each
             // This ensures they don't overlap by default and stay within screen longer
-            saved[widgetId] = { left: 78, top: 15 + (i * 22), anchorX: 'left', width: 220, height: 160, rotate: 0 };
-            localStorage.setItem('lt_widgetPositions', JSON.stringify(saved));
+            // Move cards to the far right to avoid hitting search bar, and make them smaller
+            saved[widgetId] = { left: 82, top: 15 + (i * 20), anchorX: 'left', width: 180, height: 130, rotate: 0 };
+            localStorage.setItem('wb_widgetPositions', JSON.stringify(saved));
           }
         } catch (e) {}
       });
@@ -871,8 +1012,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('load', () => {
       setTimeout(() => {
         const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
-        console.log('[LiveTab] Page load time:', loadTime, 'ms');
-        console.log('[LiveTab] localStorage used:', (JSON.stringify(localStorage).length / 1024).toFixed(2), 'KB');
+        console.log('[Wallibe] Page load time:', loadTime, 'ms');
+        console.log('[Wallibe] localStorage used:', (JSON.stringify(localStorage).length / 1024).toFixed(2), 'KB');
       }, 100);
     });
   }

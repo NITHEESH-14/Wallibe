@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "LiveTab — Live Wallpaper New Tab",
+  "name": "Wallibe — Live Wallpaper New Tab",
   "version": "1.1.0",
   "description": "Beautiful live wallpapers (video, WebGL shaders, animated gradients) on every new tab with clock and smart search.",
-  "author": "LiveTab",
+  "author": "Wallibe",
   "icons": {
     "16": "assets/icons/icon16.png",
     "48": "assets/icons/icon48.png",
@@ -18,7 +18,7 @@
       "16": "assets/icons/icon16.png",
       "48": "assets/icons/icon48.png"
     },
-    "default_title": "LiveTab Settings"
+    "default_title": "Wallibe Settings"
   },
   "background": {
     "service_worker": "background.js"

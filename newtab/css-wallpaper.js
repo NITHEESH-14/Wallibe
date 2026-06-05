@@ -1,5 +1,5 @@
 /**
- * LiveTab — CSS Wallpaper (css-wallpaper.js)
+ * Wallibe — CSS Wallpaper (css-wallpaper.js)
  * Animated gradient wallpapers using pure CSS @keyframes.
  * Zero JS RAF — 100% GPU animated.
  */

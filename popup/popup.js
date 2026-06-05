@@ -1,5 +1,5 @@
 /**
- * LiveTab — popup.js
+ * Wallibe — popup.js
  * Settings interactivity: tabs, segmented controls, toggles, sliders, file upload, save.
  */
 
@@ -11,7 +11,7 @@ const IDB = {
   init() {
     return new Promise(resolve => {
       if (this.db) return resolve(this.db);
-      const req = indexedDB.open('LiveTabDB', 1);
+      const req = indexedDB.open('WallibeDB', 1);
       req.onupgradeneeded = e => e.target.result.createObjectStore('settings');
       req.onsuccess = e => { this.db = e.target.result; resolve(this.db); };
       req.onerror = () => resolve(null);
@@ -50,7 +50,7 @@ function saveSettings(s) {
       chrome.storage.local.set(s, res);
     } else {
       Object.entries(s).forEach(([k, v]) => {
-        try { localStorage.setItem('lt_' + k, JSON.stringify(v)); } catch(e){}
+        try { localStorage.setItem('wb_' + k, JSON.stringify(v)); } catch(e){}
       });
       res();
     }
@@ -65,7 +65,7 @@ function loadSettings() {
       const out = {};
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k.startsWith('lt_')) {
+        if (k.startsWith('wb_')) {
           try { out[k.slice(3)] = JSON.parse(localStorage.getItem(k)); } catch (_) {}
         }
       }

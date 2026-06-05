@@ -1,5 +1,5 @@
 /**
- * LiveTab — sidepanel.js (v3.2)
+ * Wallibe — sidepanel.js (v3.2)
  * Right-edge settings panel.
  *
  * Changes:
@@ -12,7 +12,7 @@
 
 (function () {
 
-  const DEFAULT_SETTINGS = {
+  const DEFAUwb_SETTINGS = {
     wallpaperType: 'static',
     webglPreset: 'fluid',
     cssPreset: 'aurora',
@@ -56,24 +56,24 @@
 
   /* ─── Storage helpers ─────────────────────────────── */
   function getS(key, fallback) {
-    try { const v = localStorage.getItem('lt_' + key); return v !== null ? JSON.parse(v) : fallback; }
+    try { const v = localStorage.getItem('wb_' + key); return v !== null ? JSON.parse(v) : fallback; }
     catch (_) { return fallback; }
   }
 
   async function getAllSettings() {
-    const s = { ...DEFAULT_SETTINGS };
+    const s = { ...DEFAUwb_SETTINGS };
     if (typeof chrome !== 'undefined' && chrome.storage) {
       const local = await new Promise(res => chrome.storage.local.get(null, res));
-      Object.keys(DEFAULT_SETTINGS).forEach(k => {
+      Object.keys(DEFAUwb_SETTINGS).forEach(k => {
         if (local[k] !== undefined) s[k] = local[k];
-        else s[k] = getS(k, DEFAULT_SETTINGS[k]);
+        else s[k] = getS(k, DEFAUwb_SETTINGS[k]);
       });
     } else {
-      for (const k of Object.keys(DEFAULT_SETTINGS)) {
+      for (const k of Object.keys(DEFAUwb_SETTINGS)) {
         if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(k) && window.__IDB) {
-          s[k] = await window.__IDB.get(k, getS(k, DEFAULT_SETTINGS[k]));
+          s[k] = await window.__IDB.get(k, getS(k, DEFAUwb_SETTINGS[k]));
         } else {
-          s[k] = getS(k, DEFAULT_SETTINGS[k]);
+          s[k] = getS(k, DEFAUwb_SETTINGS[k]);
         }
       }
     }
@@ -82,10 +82,10 @@
 
   async function setS(key, value) {
     try { 
-      localStorage.setItem('lt_' + key, JSON.stringify(value)); 
+      localStorage.setItem('wb_' + key, JSON.stringify(value)); 
     } catch (e) {
       if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-        console.warn('[LiveTab] localStorage quota exceeded, falling back to chrome.storage/IDB');
+        console.warn('[Wallibe] localStorage quota exceeded, falling back to chrome.storage/IDB');
       }
     }
     if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(key) && window.__IDB) {
@@ -119,7 +119,7 @@
     const t = setInterval(() => {
       n++;
       if (window.__wallpaperEngine) { clearInterval(t); window.__wallpaperEngine.applySettings(settings); }
-      else if (n > 25) { clearInterval(t); console.warn('[LiveTab] engine timeout'); }
+      else if (n > 25) { clearInterval(t); console.warn('[Wallibe] engine timeout'); }
     }, 100);
   }
 
@@ -200,11 +200,30 @@
   function initEditLayout(settings) {
     const editLayoutToggle = document.getElementById('sp-edit-layout');
     if (!editLayoutToggle) return;
-    editLayoutToggle.checked = !!settings.editLayout;
+    
+    const isSmall = window.innerWidth <= 600;
+    editLayoutToggle.checked = isSmall ? false : !!settings.editLayout;
+    editLayoutToggle.disabled = isSmall;
+    
     if (editLayoutToggle.checked && window.__setEditLayout) window.__setEditLayout(true);
+    
     editLayoutToggle.addEventListener('change', () => {
+      if (window.innerWidth <= 600) {
+        editLayoutToggle.checked = false;
+        return;
+      }
       if (window.__setEditLayout) window.__setEditLayout(editLayoutToggle.checked);
       setS('editLayout', editLayoutToggle.checked);
+    });
+
+    window.addEventListener('resize', () => {
+      const isCurrentlySmall = window.innerWidth <= 600;
+      editLayoutToggle.disabled = isCurrentlySmall;
+      if (isCurrentlySmall) {
+        editLayoutToggle.checked = false;
+      } else {
+        editLayoutToggle.checked = !!getS('editLayout', false);
+      }
     });
   }
 
@@ -213,7 +232,7 @@
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
       if (confirm('Reset all widget positions to default?')) {
-        localStorage.removeItem('lt_widgetPositions');
+        localStorage.removeItem('wb_widgetPositions');
         location.reload();
       }
       resetBtn.innerHTML = '<span style="color:var(--sp-accent)">✓ Reset!</span>';
@@ -406,7 +425,7 @@
 
   function cleanStoredPositions(prefix, deletedIndex, totalCount) {
     try {
-      const saved = JSON.parse(localStorage.getItem('lt_widgetPositions') || '{}');
+      const saved = JSON.parse(localStorage.getItem('wb_widgetPositions') || '{}');
       // Shift all subsequent positions up by one index
       for (let j = deletedIndex; j < totalCount - 1; j++) {
         const nextId = prefix + (j + 1);
@@ -416,7 +435,7 @@
       }
       // Delete the last one
       delete saved[prefix + (totalCount - 1)];
-      localStorage.setItem('lt_widgetPositions', JSON.stringify(saved));
+      localStorage.setItem('wb_widgetPositions', JSON.stringify(saved));
     } catch (e) {}
   }
 

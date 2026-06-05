@@ -1,5 +1,5 @@
 /**
- * LiveTab — Wallpaper Engine (wallpaper-engine.js)
+ * Wallibe — Wallpaper Engine (wallpaper-engine.js)
  * Central controller: reads settings, initializes the right renderer,
  * and handles visibility-based pause/resume for zero CPU when hidden.
  */
@@ -10,6 +10,8 @@ class WallpaperEngine {
   constructor() {
     this.current = null;       // active renderer instance
     this.settings = {};
+    this._isPaused = false;
+    this._pauseTimeout = null;
     this._bound_onVisibility = this._onVisibility.bind(this);
   }
 
@@ -36,6 +38,8 @@ class WallpaperEngine {
 
   async _mount(type) {
     this._hideAll();
+    this._isPaused = false;
+    clearTimeout(this._pauseTimeout);
     // Show loading state for better UX
     document.getElementById('wallpaper-container').classList.add('loading');
     
@@ -66,6 +70,8 @@ class WallpaperEngine {
   }
 
   _destroyCurrent() {
+    clearTimeout(this._pauseTimeout);
+    this._isPaused = false;
     if (this.current && this.current.destroy) this.current.destroy();
     this.current = null;
     this._hideAll();
@@ -90,11 +96,21 @@ class WallpaperEngine {
   _onVisibility() {
     if (!this.current) return;
     if (document.hidden) {
-      // Pause all wallpaper types when hidden
-      if (this.current.pause) this.current.pause();
+      if (this._isPaused) return;
+      // Delay pausing to allow browser/OS to capture Alt-Tab thumbnail
+      clearTimeout(this._pauseTimeout);
+      this._pauseTimeout = setTimeout(() => {
+        if (this.current && this.current.pause) {
+          this.current.pause();
+          this._isPaused = true;
+        }
+      }, 2000);
     } else {
-      // Resume all wallpaper types when visible
-      if (this.current.resume) this.current.resume();
+      clearTimeout(this._pauseTimeout);
+      if (this._isPaused) {
+        if (this.current.resume) this.current.resume();
+        this._isPaused = false;
+      }
     }
   }
 }

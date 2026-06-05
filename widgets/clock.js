@@ -1,5 +1,5 @@
 /**
- * LiveTab — Clock Widget (clock.js)
+ * Wallibe — Clock Widget (clock.js)
  * Uses setTimeout chain (not setInterval) for better accuracy.
  * Supports 12h / 24h from settings.
  * Supports showSeconds (hide/show :ss) and showDate (hide/show date line).

@@ -1,5 +1,5 @@
 /**
- * LiveTab — Quick Links Widget (quicklinks.js)
+ * Wallibe — Quick Links Widget (quicklinks.js)
  * Renders each link as its own independently draggable widget.
  * Supports: custom uploaded logo image, custom emoji, or Google favicon fallback.
  */
@@ -53,7 +53,7 @@ class QuickLinksWidget {
 
       // Set default position — pixel-accurate centering of the entire group
       try {
-        const saved = JSON.parse(localStorage.getItem('lt_widgetPositions') || '{}');
+        const saved = JSON.parse(localStorage.getItem('wb_widgetPositions') || '{}');
         if (!saved[widgetId]) {
           const total = links.length;
           const linkWidth = 72;  // px — matches .quicklink-item width
@@ -68,7 +68,7 @@ class QuickLinksWidget {
             anchorX: 'left',
             anchorY: 'top'
           };
-          localStorage.setItem('lt_widgetPositions', JSON.stringify(saved));
+          localStorage.setItem('wb_widgetPositions', JSON.stringify(saved));
         }
       } catch (e) { /* ignore */ }
     });
@@ -95,7 +95,7 @@ class QuickLinksWidget {
 
     // 3) Google favicon with inline emoji fallback
     const domain     = this._getDomain(link.url);
-    const cacheKey   = 'lt_icon_' + domain;
+    const cacheKey   = 'wb_icon_' + domain;
     const cached     = localStorage.getItem(cacheKey);
     const faviconUrl = cached || `https://icon.horse/icon/${domain}`;
 

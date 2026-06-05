@@ -1,5 +1,5 @@
 /**
- * LiveTab — Video Wallpaper (video-wallpaper.js)
+ * Wallibe — Video Wallpaper (video-wallpaper.js)
  * Handles <video> based fullscreen wallpaper with pre-warm decode.
  */
 

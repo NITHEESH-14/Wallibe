@@ -1,7 +1,7 @@
-// LiveTab — Service Worker (background.js)
+// Wallibe — Service Worker (background.js)
 // Handles install defaults and alarm-based cache invalidation
 
-const DEFAULT_SETTINGS = {
+const DEFAUwb_SETTINGS = {
   wallpaperType: 'static',
   webglPreset: 'fluid',
   cssPreset: 'aurora',
@@ -34,7 +34,7 @@ const DEFAULT_SETTINGS = {
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
   if (reason === 'install') {
-    chrome.storage.local.set(DEFAULT_SETTINGS);
-    console.log('[LiveTab] Default settings applied to local storage.');
+    chrome.storage.local.set(DEFAUwb_SETTINGS);
+    console.log('[Wallibe] Default settings applied to local storage.');
   }
 });

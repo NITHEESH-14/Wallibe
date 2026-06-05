@@ -1,5 +1,5 @@
 /**
- * LiveTab — Dev Server (server.js)
+ * Wallibe — Dev Server (server.js)
  * Simple Node.js static file server for localhost preview.
  * Run: node server.js
  * Then open: http://localhost:3000
@@ -66,7 +66,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n  🌌 LiveTab Dev Server running!\n`);
+  console.log(`\n  🌌 Wallibe Dev Server running!\n`);
   console.log(`  → Local:   http://localhost:${PORT}`);
   console.log(`  → Popup:   http://localhost:${PORT}/popup/popup.html`);
   console.log(`\n  Press Ctrl+C to stop.\n`);

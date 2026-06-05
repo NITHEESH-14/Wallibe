@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   LiveTab — newtab.css
+   Wallibe — newtab.css
    Performance-first: wallpaper composited on GPU layer,
    widgets isolated with contain:strict
 ═══════════════════════════════════════════════════════ */
@@ -59,8 +59,8 @@ html, body {
 #widget-layer {
   position: fixed; inset: 0;
   z-index: 10;
-  /* Removed contain: layout style — it was clipping resize-handle dots on child widgets */
   pointer-events: none; /* let events pass through to wallpaper */
+  transform-origin: center center;
 }
 
 /* All widgets are absolutely positioned; enable pointer events on them */
@@ -115,6 +115,7 @@ body.edit-layout .draggable-widget::before { display: none; }
 
 #clock-widget, #date-widget {
   text-align: center;
+  z-index: 10;
 }
 
 #clock-widget {
@@ -215,15 +216,16 @@ body.edit-layout #date-widget {
 /* ── Search ──────────────────────────────────────────── */
 /* ── Search ── */
 #search-widget {
-  width: var(--search-width, min(640px, 92vw));
-  height: var(--search-height, 52px);
+  width: var(--search-width, clamp(280px, 50vw, 640px));
+  height: var(--search-height, clamp(40px, 4vw, 52px));
   padding: 0 6px;
   min-width: 280px;
-  min-height: 52px;
+  min-height: 40px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  z-index: 100;
 }
 
 #search-bar-wrap {
@@ -293,8 +295,8 @@ body.edit-layout #date-widget {
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  width: 36px;
-  height: 36px;
+  width: clamp(28px, 2.8vw, 36px);
+  height: clamp(28px, 2.8vw, 36px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -316,8 +318,8 @@ body.edit-layout #date-widget {
   border: none;
   color: var(--accent);
   cursor: pointer;
-  width: 40px;
-  height: 40px;
+  width: clamp(32px, 3.2vw, 40px);
+  height: clamp(32px, 3.2vw, 40px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -327,12 +329,14 @@ body.edit-layout #date-widget {
   margin-right: 4px;
 }
 #search-btn:hover { opacity: 0.8; }
-#search-btn svg { width: 22px; height: 22px; }
+#search-btn svg { width: 55%; height: 55%; }
 
 
 /* ── Quick Links (individual draggable widgets) ──────── */
 .single-link-widget {
-  z-index: 50;
+  z-index: 90;
+  /* Add horizontal padding to ensure links don't touch even on small screens */
+  padding: 0 8px;
 }
 /* Suppress re-render animation on existing link widgets */
 .single-link-widget.no-animate {
@@ -343,8 +347,8 @@ body.edit-layout #date-widget {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  width: 72px;
+  gap: clamp(4px, 0.5vw, 6px);
+  width: clamp(56px, 5.6vw, 72px);
   cursor: pointer;
   text-decoration: none;
   color: var(--text);
@@ -353,8 +357,8 @@ body.edit-layout #date-widget {
 .quicklink-item:hover { transform: translateY(-2px) scale(1.02); }
 
 .quicklink-icon-wrap {
-  width: 44px; height: 44px;
-  border-radius: 14px;
+  width: clamp(34px, 3.4vw, 44px); height: clamp(34px, 3.4vw, 44px);
+  border-radius: 28%;
   background: transparent; /* No background blur — keep it clean */
   border: 1px solid rgba(255, 255, 255, 0.15);
   display: flex; align-items: center; justify-content: center;
@@ -386,8 +390,8 @@ body.edit-layout #clock-date {
   pointer-events: none;
 }
 
-.quicklink-favicon { width: 28px; height: 28px; border-radius: 6px; }
-.quicklink-label   { font-size: 0.72rem; color: var(--text-muted); text-align: center; }
+.quicklink-favicon { width: clamp(20px, 2vw, 28px); height: clamp(20px, 2vw, 28px); border-radius: 14%; }
+.quicklink-label   { font-size: clamp(0.65rem, 0.8vw, 0.75rem); color: var(--text-muted); text-align: center; }
 
 /* ── Floating Image Card ─────────────────────────────── */
 .single-float-card-widget {
@@ -400,7 +404,7 @@ body.edit-layout #clock-date {
   box-shadow: 0 8px 32px rgba(0,0,0,0.2);
   padding: 0;
   z-index: 40;
-  transition: background 0.3s, backdrop-filter 0.3s;
+  transition: background 0.3s, backdrop-filter 0.3s, opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .single-float-card-widget.has-content {
   background: transparent !important;
@@ -416,12 +420,14 @@ body.edit-layout #clock-date {
   display: block;
   pointer-events: none;
   opacity: 1; /* Fully opaque content */
+  user-select: none;
+  -webkit-user-drag: none;
 }
 .float-card-glass {
   /* Inherits from .single-float-card-widget */
 }
 /* No hover effects on float card */
-.single-float-card-widget:hover { transform: none !important; opacity: 1 !important; }
+.single-float-card-widget:hover { opacity: 1 !important; }
 
 /* ── Keyframe animations ─────────────────────────────── */
 @keyframes fadeUp {
@@ -554,6 +560,17 @@ body.edit-layout #date-widget .resize-handle {
   /* Stagger links below */
   .single-link-widget {
     top: 55% !important;
+  }
+  /* Hide handles and reset layout edit mode styles on smaller screens */
+  .resize-handle, .rotate-handle {
+    display: none !important;
+  }
+  body.edit-layout .draggable-widget {
+    outline: none !important;
+    cursor: default !important;
+  }
+  body.edit-layout .single-link-widget .quicklink-icon-wrap {
+    outline: none !important;
   }
 }
 
