@@ -60,7 +60,7 @@ class QuickLinksWidget {
           const gap = 20;        // px gap between each link
           const stride = linkWidth + gap;
           const groupWidth = total * linkWidth + (total - 1) * gap;
-          const vw = window.innerWidth;
+          const vw = 1280;
           const groupLeftPx = (vw - groupWidth) / 2;
           saved[widgetId] = {
             left: ((groupLeftPx + i * stride) / vw) * 100,

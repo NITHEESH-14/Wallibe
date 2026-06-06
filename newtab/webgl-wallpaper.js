@@ -51,6 +51,9 @@ class WebGLWallpaper {
         window.__currentSettings.cssPreset = 'aurora';
       }
       const css = new CSSWallpaper(this.settings);
+      if (window.__wallpaperEngine) {
+        window.__wallpaperEngine.current = css;
+      }
       await css.mount();
       return;
     }

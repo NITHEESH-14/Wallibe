@@ -12,7 +12,7 @@
 
 (function () {
 
-  const DEFAUwb_SETTINGS = {
+  const DEFAULT_SETTINGS = {
     wallpaperType: 'static',
     webglPreset: 'fluid',
     cssPreset: 'aurora',
@@ -61,19 +61,19 @@
   }
 
   async function getAllSettings() {
-    const s = { ...DEFAUwb_SETTINGS };
+    const s = { ...DEFAULT_SETTINGS };
     if (typeof chrome !== 'undefined' && chrome.storage) {
       const local = await new Promise(res => chrome.storage.local.get(null, res));
-      Object.keys(DEFAUwb_SETTINGS).forEach(k => {
+      Object.keys(DEFAULT_SETTINGS).forEach(k => {
         if (local[k] !== undefined) s[k] = local[k];
-        else s[k] = getS(k, DEFAUwb_SETTINGS[k]);
+        else s[k] = getS(k, DEFAULT_SETTINGS[k]);
       });
     } else {
-      for (const k of Object.keys(DEFAUwb_SETTINGS)) {
+      for (const k of Object.keys(DEFAULT_SETTINGS)) {
         if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(k) && window.__IDB) {
-          s[k] = await window.__IDB.get(k, getS(k, DEFAUwb_SETTINGS[k]));
+          s[k] = await window.__IDB.get(k, getS(k, DEFAULT_SETTINGS[k]));
         } else {
-          s[k] = getS(k, DEFAUwb_SETTINGS[k]);
+          s[k] = getS(k, DEFAULT_SETTINGS[k]);
         }
       }
     }

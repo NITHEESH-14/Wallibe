@@ -46,23 +46,23 @@ function debounce(fn, ms) {
 }
 
 async function getAllSettings() {
-  const settings = { ...DEFAUwb_SETTINGS };
+  const settings = { ...DEFAULT_SETTINGS };
   if (typeof chrome !== 'undefined' && chrome.storage) {
     const local = await new Promise(res => chrome.storage.local.get(null, res));
-    Object.keys(DEFAUwb_SETTINGS).forEach(k => {
+    Object.keys(DEFAULT_SETTINGS).forEach(k => {
       if (local[k] !== undefined) settings[k] = local[k];
-      else settings[k] = lsGet(k, DEFAUwb_SETTINGS[k]);
+      else settings[k] = lsGet(k, DEFAULT_SETTINGS[k]);
     });
   } else {
-    for (const k of Object.keys(DEFAUwb_SETTINGS)) {
+    for (const k of Object.keys(DEFAULT_SETTINGS)) {
       if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(k)) {
-        settings[k] = await window.__IDB.get(k, lsGet(k, DEFAUwb_SETTINGS[k]));
+        settings[k] = await window.__IDB.get(k, lsGet(k, DEFAULT_SETTINGS[k]));
       } else if (k === 'floatCards') {
         const cached = await window.__IDB.get('floatCards', null);
         if (cached) settings.floatCards = cached;
-        else settings.floatCards = lsGet('floatCards', DEFAUwb_SETTINGS.floatCards);
+        else settings.floatCards = lsGet('floatCards', DEFAULT_SETTINGS.floatCards);
       } else {
-        settings[k] = lsGet(k, DEFAUwb_SETTINGS[k]);
+        settings[k] = lsGet(k, DEFAULT_SETTINGS[k]);
       }
     }
   }
@@ -104,7 +104,7 @@ window.__IDB = {
   }
 };
 
-const DEFAUwb_SETTINGS = {
+const DEFAULT_SETTINGS = {
   wallpaperType: 'static',
   webglPreset: 'fluid',
   cssPreset: 'aurora',
@@ -222,7 +222,7 @@ window.__loadCustomFonts = () => {
 };
 
 /* ── Default widget positions (as % of viewport) ── */
-const DEFAUwb_POSITIONS = {
+const DEFAULT_POSITIONS = {
   'clock-widget':      { left: 50, top: 31, anchorX: 'center' },
   'date-widget':       { left: 50, top: 49, anchorX: 'center' },
   'search-widget':     { left: 50, top: 58, anchorX: 'center' }
@@ -235,23 +235,13 @@ function applyPosition(el, pos, vw, vh, w, h) {
   const rotateDeg = pos.rotate || 0;
   const rotateStr = rotateDeg ? `rotate(${rotateDeg}deg)` : '';
 
-  const layerScale = window.__layerScale || 1;
-  let widgetScale = '';
-  if (el.id === 'search-widget') {
-    // Make search bar 20% larger than original on smaller screens
-    const targetScale = layerScale < 1 ? 1.2 : 1.0;
-    widgetScale = `scale(${targetScale / layerScale})`;
-  } else if (el.classList.contains('single-link-widget')) {
-    widgetScale = `scale(${0.7 + 0.3 / layerScale})`;
-  }
-
   if (pos.anchorX === 'center') {
     el.style.left = '50%';
-    el.style.transform = `translateX(-50%) ${rotateStr} ${widgetScale}`.trim();
+    el.style.transform = `translateX(-50%) ${rotateStr}`.trim();
   } else {
     if (pos.anchorX === 'right') x = vw - w - (pos.left === 0 ? 0 : (1 - pos.left / 100) * vw);
     el.style.left = x + 'px';
-    el.style.transform = `${rotateStr} ${widgetScale}`.trim() || 'none';
+    el.style.transform = `${rotateStr}`.trim() || 'none';
   }
 
   if (pos.anchorY === 'center' || pos.anchorY === 'middle') y = Math.round((vh - h) / 2);
@@ -263,8 +253,8 @@ function applyPosition(el, pos, vw, vh, w, h) {
 
 function layoutWidgets() {
   const saved = lsGet('widgetPositions', {});
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const vw = 1280;
+  const vh = 720;
   const root = document.documentElement;
 
   let frameCount = 0;
@@ -274,7 +264,7 @@ function layoutWidgets() {
       const id = el.id;
       if (!id || el.style.display === 'none') return null;
 
-      const s = saved[id] || DEFAUwb_POSITIONS[id];
+      const s = saved[id] || DEFAULT_POSITIONS[id];
       if (!s) return null;
 
       if (s.width && !isNaN(s.width)) {
@@ -309,60 +299,17 @@ function layoutWidgets() {
 
     measurements.forEach(m => applyPosition(m.el, m.pos, vw, vh, m.w, m.h));
 
-    // Global collision detection for all widgets
-    let collisionDetected = false;
-    if (!document.body.classList.contains('edit-layout')) {
-      const activeWidgets = [
-        document.getElementById('clock-widget'),
-        document.getElementById('date-widget'),
-        document.getElementById('search-widget'),
-        ...Array.from(document.querySelectorAll('.single-link-widget')),
-        ...Array.from(document.querySelectorAll('.single-float-card-widget'))
-      ].filter(el => el && el.style.display !== 'none');
-
-      // Get bounding rects for all candidates
-      const rects = activeWidgets.map(el => ({ el, rect: el.getBoundingClientRect() }));
-
-      // Check all pairs for overlap
-      for (let i = 0; i < rects.length; i++) {
-        for (let j = i + 1; j < rects.length; j++) {
-          const r1 = rects[i].rect;
-          const r2 = rects[j].rect;
-          if (r1.width === 0 || r2.width === 0) continue;
-
-          // Check overlap with a small padding/buffer of 10px
-          const padding = 10;
-          const overlap = !(r1.right - padding < r2.left || 
-                            r1.left + padding > r2.right || 
-                            r1.bottom - padding < r2.top || 
-                            r1.top + padding > r2.bottom);
-          if (overlap) {
-            collisionDetected = true;
-            break;
-          }
-        }
-        if (collisionDetected) break;
-      }
-    }
-
-    // Apply visibility states based on collision detection
+    // Reset visibility and styles (ensure they are all visible)
     const collidableHideables = [
       document.getElementById('clock-widget'),
       document.getElementById('date-widget'),
       ...Array.from(document.querySelectorAll('.single-float-card-widget'))
     ];
-
     collidableHideables.forEach(el => {
       if (!el) return;
-      if (collisionDetected && !document.body.classList.contains('edit-layout')) {
-        el.style.opacity = '0';
-        el.style.visibility = 'hidden';
-        el.style.pointerEvents = 'none';
-      } else {
-        el.style.opacity = '1';
-        el.style.visibility = 'visible';
-        el.style.pointerEvents = 'all';
-      }
+      el.style.opacity = '1';
+      el.style.visibility = 'visible';
+      el.style.pointerEvents = 'all';
     });
 
     const alwaysKeep = [
@@ -386,15 +333,10 @@ window.__layerScale = 1;
 function applyResponsiveScale() {
   const layer = document.getElementById('widget-layer');
   if (!layer) return;
-  const baseW = 1280;
-  const vw = window.innerWidth;
-  if (vw < baseW) {
-    window.__layerScale = Math.max(0.5, vw / baseW);
-  } else {
-    window.__layerScale = 1;
-  }
-  layer.style.setProperty('--layer-scale', window.__layerScale);
-  layer.style.transform = `scale(${window.__layerScale})`;
+  const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+  window.__layerScale = scale;
+  layer.style.setProperty('--layer-scale', scale);
+  layer.style.transform = `translate(-50%, -50%) scale(${scale})`;
 }
 
 window.addEventListener('resize', () => {
@@ -411,22 +353,28 @@ window.addEventListener('resize', () => {
 function savePosition(widgetId) {
   const el = document.getElementById(widgetId);
   if (!el) return;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const layer = document.getElementById('widget-layer');
+  if (!layer) return;
+  const layerRect = layer.getBoundingClientRect();
   const saved = lsGet('widgetPositions', {});
   const existing = saved[widgetId] || {};
 
-  // Get current pixel offsets
+  // Get current screen position from bounding rect
   const rect = el.getBoundingClientRect();
+  const scale = window.__layerScale || 1;
 
-  let leftVal = (rect.left / vw) * 100;
-  let topVal = (rect.top / vh) * 100;
+  // Calculate unscaled coordinates relative to the virtual layer bounds (1280x720)
+  const unscaledLeft = (rect.left - layerRect.left) / scale;
+  const unscaledTop = (rect.top - layerRect.top) / scale;
+
+  let leftVal = (unscaledLeft / 1280) * 100;
+  let topVal = (unscaledTop / 720) * 100;
   let anchorX = 'left';
 
-  // Handle snapping/centering — check both CSS value and actual pixel position
-  const widgetCenter = rect.left + rect.width / 2;
-  const viewportCenter = vw / 2;
-  if (el.style.left === '50%' || Math.abs(widgetCenter - viewportCenter) < 15) {
+  // Handle snapping/centering (virtual center is 640)
+  const widgetWidth = el.offsetWidth;
+  const widgetCenter = unscaledLeft + widgetWidth / 2;
+  if (el.style.left === '50%' || Math.abs(widgetCenter - 640) < 20) {
     leftVal = 50;
     anchorX = 'center';
   }
@@ -466,9 +414,9 @@ function resetLayout() {
   const linkWidgets = Array.from(document.querySelectorAll('.single-link-widget'));
   if (linkWidgets.length > 0) {
     const total = linkWidgets.length;
-    const vw = window.innerWidth;
+    const vw = 1280;
     const w = linkWidgets[0].offsetWidth || 72;
-    const gap = vw < 800 ? 30 : 20; // Increased gap on small screens
+    const gap = 20;
     const stride = w + gap;
     const groupWidth = total * w + (total - 1) * gap;
     const groupLeftPx = (vw - groupWidth) / 2;
@@ -549,36 +497,34 @@ let _rotating = null;
 function _startDrag(el, clientX, clientY) {
   if (window.innerWidth <= 600) return false;
   if (!document.body.classList.contains('edit-layout')) return false;
-  const rect = el.getBoundingClientRect();
 
-  const layerRect = document.getElementById('widget-layer').getBoundingClientRect();
+  const layer = document.getElementById('widget-layer');
+  if (!layer) return false;
+  const layerRect = layer.getBoundingClientRect();
+  const rect = el.getBoundingClientRect();
   const scale = window.__layerScale || 1;
+
+  // Calculate unscaled position relative to the virtual layer
   const unscaledLeft = (rect.left - layerRect.left) / scale;
   const unscaledTop = (rect.top - layerRect.top) / scale;
 
   const currentRotate = el.style.getPropertyValue('--widget-rotate') || '0deg';
-  
-  let widgetScale = '';
-  if (el.id === 'search-widget') {
-    const targetScale = scale < 1 ? 1.2 : 1.0;
-    widgetScale = `scale(${targetScale / scale})`;
-  } else if (el.classList.contains('single-link-widget')) {
-    widgetScale = `scale(${0.7 + 0.3 / scale})`;
-  }
 
-  const finalTransform = `${currentRotate} ${widgetScale}`.trim();
-  el.style.transform = finalTransform; 
+  el.style.transform = currentRotate; 
   el.style.left = unscaledLeft + 'px';
   el.style.top = unscaledTop + 'px';
   el.style.transition = 'none';
   el.style.zIndex = '1000';
 
+  // Mouse position in unscaled virtual space relative to layer
+  const unscaledMouseX = (clientX - layerRect.left) / scale;
+  const unscaledMouseY = (clientY - layerRect.top) / scale;
+
   _dragging = {
     el,
-    offsetX: (clientX - rect.left) / scale,
-    offsetY: (clientY - rect.top) / scale,
-    rotateStr: currentRotate,
-    widgetScale: widgetScale
+    offsetX: unscaledMouseX - unscaledLeft,
+    offsetY: unscaledMouseY - unscaledTop,
+    rotateStr: currentRotate
   };
   return true;
 }
@@ -669,6 +615,9 @@ window.__attachRotateHandlers = attachRotateHandlers;
 // ─── Resize handlers ─────────────────────────────────────
 function attachResizeHandlers() {
   document.querySelectorAll('.resize-handle').forEach(handle => {
+    if (handle._hasResizeListener) return;
+    handle._hasResizeListener = true;
+    
     const startResize = e => {
       if (window.innerWidth <= 600) return;
       if (!document.body.classList.contains('edit-layout')) return;
@@ -680,26 +629,36 @@ function attachResizeHandlers() {
       const widgetId = handle.dataset.widget;
       const el = document.getElementById(widgetId);
       if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const vw = window.innerWidth;
-      const layerRect = document.getElementById('widget-layer').getBoundingClientRect();
+      
+      const layer = document.getElementById('widget-layer');
+      if (!layer) return;
+      const layerRect = layer.getBoundingClientRect();
       const scale = window.__layerScale || 1;
+      const rect = el.getBoundingClientRect();
+
       const unscaledLeft = (rect.left - layerRect.left) / scale;
       const unscaledTop = (rect.top - layerRect.top) / scale;
 
+      const unscaledMouseX = (clientX - layerRect.left) / scale;
+      const unscaledMouseY = (clientY - layerRect.top) / scale;
+
       _resizing = {
         el, widgetId,
-        startX: clientX, startY: clientY,
+        startX: unscaledMouseX, startY: unscaledMouseY,
         startW: el.offsetWidth, startH: el.offsetHeight,
         centerX: unscaledLeft + el.offsetWidth / 2,
         centerY: unscaledTop + el.offsetHeight / 2,
-        wasCentered: el.style.left === '50%' || Math.abs((rect.left + rect.width / 2) - vw / 2) < 15
+        wasCentered: el.style.left === '50%' || Math.abs((unscaledLeft + el.offsetWidth / 2) - 640) < 20
       };
 
-      // Detach transform so px positioning works
       const currentRotate = el.style.getPropertyValue('--widget-rotate') || '0deg';
-      el.style.transform = currentRotate;
-      el.style.left = unscaledLeft + 'px';
+      if (_resizing.wasCentered) {
+        el.style.transform = `translateX(-50%) ${currentRotate}`.trim();
+        el.style.left = '50%';
+      } else {
+        el.style.transform = currentRotate;
+        el.style.left = unscaledLeft + 'px';
+      }
       el.style.top = unscaledTop + 'px';
     };
     handle.addEventListener('mousedown', startResize, { passive: false });
@@ -736,38 +695,45 @@ function handleMove(e) {
     return;
   }
 
+  const layer = document.getElementById('widget-layer');
+  if (!layer) return;
+  const layerRect = layer.getBoundingClientRect();
   const scale = window.__layerScale || 1;
 
   if (_resizing) {
     if (isTouch) e.preventDefault();
-    const dw = (clientX - _resizing.startX) / scale;
-    const dh = (clientY - _resizing.startY) / scale;
+    const unscaledMouseX = (clientX - layerRect.left) / scale;
+    const unscaledMouseY = (clientY - layerRect.top) / scale;
+    const dw = unscaledMouseX - _resizing.startX;
+    const dh = unscaledMouseY - _resizing.startY;
     const isCard = _resizing.widgetId.startsWith('float-card-widget-');
     let minW = isCard ? 30 : 100, minH = isCard ? 30 : 24;
     if (_resizing.widgetId === 'search-widget') { minW = 280; minH = 52; }
     if (_resizing.widgetId === 'date-widget') { minW = 140; }
 
-    const maxW = Math.max(minW, Math.min(_resizing.centerX, window.innerWidth - _resizing.centerX) * 2 - 10);
-    const maxH = Math.max(minH, Math.min(_resizing.centerY, window.innerHeight - _resizing.centerY) * 2 - 10);
+    const maxW = Math.max(minW, Math.min(_resizing.centerX, 1280 - _resizing.centerX) * 2 - 10);
+    const maxH = Math.max(minH, Math.min(_resizing.centerY, 720 - _resizing.centerY) * 2 - 10);
 
     let newW = _resizing.startW + dw * 2;
     let newH = _resizing.startH + dh * 2;
 
-    // Constrain to screen boundaries
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const maxSafeW = Math.min(maxW, _resizing.centerX * 2, (vw - _resizing.centerX) * 2);
-    const maxSafeH = Math.min(maxH, _resizing.centerY * 2, (vh - _resizing.centerY) * 2);
+    const maxSafeW = Math.min(maxW, _resizing.centerX * 2, (1280 - _resizing.centerX) * 2);
+    const maxSafeH = Math.min(maxH, _resizing.centerY * 2, (720 - _resizing.centerY) * 2);
 
     newW = Math.max(minW, Math.min(newW, maxSafeW));
     newH = Math.max(minH, Math.min(newH, maxSafeH));
     const root = document.documentElement;
 
     // Symmetric resizing
-    _resizing.el.style.transform = _resizing.el.style.getPropertyValue('--widget-rotate') || '0deg';
+    const currentRotate = _resizing.el.style.getPropertyValue('--widget-rotate') || '0deg';
+    if (_resizing.wasCentered) {
+      _resizing.el.style.transform = `translateX(-50%) ${currentRotate}`.trim();
+    } else {
+      _resizing.el.style.transform = currentRotate;
+      _resizing.el.style.left = (_resizing.centerX - newW / 2) + 'px';
+    }
     _resizing.el.style.maxWidth = 'none'; // Clear panel-imposed max-width during visual drag
     _resizing.el.style.width = newW + 'px';
-    _resizing.el.style.left = (_resizing.centerX - newW / 2) + 'px';
 
     if (_resizing.widgetId === 'search-widget') {
       _resizing.el.style.height = newH + 'px';
@@ -790,29 +756,27 @@ function handleMove(e) {
   if (!_dragging) return;
   if (isTouch) e.preventDefault();
 
-  // Simple absolute-coordinate dragging (no transform math needed)
-  const layerRect = document.getElementById('widget-layer').getBoundingClientRect();
-  let left = ((clientX - layerRect.left) / scale) - _dragging.offsetX;
-  let top = ((clientY - layerRect.top) / scale) - _dragging.offsetY;
+  const unscaledMouseX = (clientX - layerRect.left) / scale;
+  const unscaledMouseY = (clientY - layerRect.top) / scale;
 
-  // Constrain to screen boundaries (in unscaled CSS pixels)
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  let left = unscaledMouseX - _dragging.offsetX;
+  let top = unscaledMouseY - _dragging.offsetY;
+
   const w = _dragging.el.offsetWidth;
   const h = _dragging.el.offsetHeight;
 
-  left = Math.max(0, Math.min(left, vw - w));
-  top = Math.max(0, Math.min(top, vh - h));
+  left = Math.max(0, Math.min(left, 1280 - w));
+  top = Math.max(0, Math.min(top, 720 - h));
 
-  // Optional: snap to horizontal center of screen
+  // Snap to horizontal center of virtual screen
   const snapZone = 20;
-  if (Math.abs((left + w / 2) - vw / 2) < snapZone) {
-    left = vw / 2 - w / 2;  // align exactly to center
+  if (Math.abs((left + w / 2) - 640) < snapZone) {
+    left = 640 - w / 2;
   }
 
   _dragging.el.style.left = left + 'px';
   _dragging.el.style.top = top + 'px';
-  _dragging.el.style.transform = `${_dragging.rotateStr} ${_dragging.widgetScale}`.trim();
+  _dragging.el.style.transform = _dragging.rotateStr;
 }
 
 function handleEnd() {
@@ -820,6 +784,7 @@ function handleEnd() {
     savePosition(_dragging.el.id);
     _dragging.el.style.zIndex = '';
     _dragging = null;
+    layoutWidgets();
   }
   if (_resizing) {
     // Save the current pixel position first
@@ -842,10 +807,12 @@ function handleEnd() {
     }
     lsSet('widgetPositions', s);
     _resizing = null;
+    layoutWidgets();
   }
   if (_rotating) {
     savePosition(_rotating.widgetId);
     _rotating = null;
+    layoutWidgets();
   }
 }
 
@@ -874,7 +841,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Fast synchronous init for non-IDB settings
-  const fastSettings = { ...DEFAUwb_SETTINGS };
+  const fastSettings = { ...DEFAULT_SETTINGS };
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (k.startsWith('wb_')) {

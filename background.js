@@ -1,7 +1,7 @@
 // Wallibe — Service Worker (background.js)
 // Handles install defaults and alarm-based cache invalidation
 
-const DEFAUwb_SETTINGS = {
+const DEFAULT_SETTINGS = {
   wallpaperType: 'static',
   webglPreset: 'fluid',
   cssPreset: 'aurora',
@@ -34,7 +34,7 @@ const DEFAUwb_SETTINGS = {
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
   if (reason === 'install') {
-    chrome.storage.local.set(DEFAUwb_SETTINGS);
+    chrome.storage.local.set(DEFAULT_SETTINGS);
     console.log('[Wallibe] Default settings applied to local storage.');
   }
 });
