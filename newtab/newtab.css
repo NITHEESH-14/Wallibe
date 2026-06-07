@@ -219,7 +219,7 @@ body.edit-layout #date-widget {
 
 
 /* ── Search ──────────────────────────────────────────── */
-/* ── Search ── */
+/* ── Search — Premium Glassmorphism ── */
 #search-widget {
   width: var(--search-width, 640px);
   height: var(--search-height, 52px);
@@ -231,6 +231,39 @@ body.edit-layout #date-widget {
   flex-direction: column;
   justify-content: center;
   z-index: 100;
+
+  /* ── Glassmorphism ── */
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-radius: var(--radius);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 0 transparent;
+  transition: box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#search-widget:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 20px rgba(var(--accent-rgb, 16, 185, 129), 0.08);
+}
+
+#search-widget:focus-within {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--accent);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 30px rgba(var(--accent-rgb, 16, 185, 129), 0.15),
+    0 0 0 1px rgba(var(--accent-rgb, 16, 185, 129), 0.12);
 }
 
 #search-bar-wrap {
@@ -258,7 +291,7 @@ body.edit-layout #date-widget {
   font-family: inherit;
   font-size: var(--search-font-size, 1.5rem); /* Set by JS atomically — no flash */
   padding: 0;
-  padding-top: 3px; /* Nudge text slightly below center */
+  padding-bottom: 2px; /* Nudge text slightly up to center perfectly */
   height: 100%;
   line-height: 1;
   display: flex;
@@ -269,7 +302,7 @@ body.edit-layout #date-widget {
 }
 #search-input::placeholder { 
   color: var(--text-muted); 
-  font-size: inherit;
+  font-size: 0.88em;
   line-height: 1;
   opacity: 1;
 }
@@ -396,7 +429,7 @@ body.edit-layout #clock-date {
 }
 
 .quicklink-favicon { width: 28px; height: 28px; border-radius: 14%; }
-.quicklink-label   { font-size: 0.75rem; color: var(--text-muted); text-align: center; }
+.quicklink-label   { font-size: 0.75rem; color: var(--accent); text-align: center; }
 
 /* ── Floating Image Card ─────────────────────────────── */
 .single-float-card-widget {

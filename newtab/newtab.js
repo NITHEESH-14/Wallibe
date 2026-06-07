@@ -355,26 +355,39 @@ function savePosition(widgetId) {
   if (!el) return;
   const layer = document.getElementById('widget-layer');
   if (!layer) return;
-  const layerRect = layer.getBoundingClientRect();
   const saved = lsGet('widgetPositions', {});
   const existing = saved[widgetId] || {};
 
-  // Get current screen position from bounding rect
-  const rect = el.getBoundingClientRect();
   const scale = window.__layerScale || 1;
+  let anchorX = 'left';
+  let unscaledLeft, unscaledTop;
 
-  // Calculate unscaled coordinates relative to the virtual layer bounds (1280x720)
-  const unscaledLeft = (rect.left - layerRect.left) / scale;
-  const unscaledTop = (rect.top - layerRect.top) / scale;
+  // Prefer reading the inline CSS left/top values directly.
+  // getBoundingClientRect() on rotated elements returns the axis-aligned
+  // bounding box which is larger and shifted — causing position drift.
+  if (el.style.left === '50%') {
+    // Widget is center-anchored
+    anchorX = 'center';
+    unscaledLeft = 640 - el.offsetWidth / 2; // virtual center
+    unscaledTop = parseFloat(el.style.top) || 0;
+  } else if (el.style.left && el.style.left.endsWith('px')) {
+    unscaledLeft = parseFloat(el.style.left) || 0;
+    unscaledTop = parseFloat(el.style.top) || 0;
+  } else {
+    // Fallback: use bounding rect (for first-time positioning)
+    const layerRect = layer.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    unscaledLeft = (rect.left - layerRect.left) / scale;
+    unscaledTop = (rect.top - layerRect.top) / scale;
+  }
 
   let leftVal = (unscaledLeft / 1280) * 100;
   let topVal = (unscaledTop / 720) * 100;
-  let anchorX = 'left';
 
   // Handle snapping/centering (virtual center is 640)
   const widgetWidth = el.offsetWidth;
   const widgetCenter = unscaledLeft + widgetWidth / 2;
-  if (el.style.left === '50%' || Math.abs(widgetCenter - 640) < 20) {
+  if (anchorX !== 'center' && Math.abs(widgetCenter - 640) < 20) {
     leftVal = 50;
     anchorX = 'center';
   }
@@ -501,18 +514,34 @@ function _startDrag(el, clientX, clientY) {
   const layer = document.getElementById('widget-layer');
   if (!layer) return false;
   const layerRect = layer.getBoundingClientRect();
-  const rect = el.getBoundingClientRect();
   const scale = window.__layerScale || 1;
 
-  // Calculate unscaled position relative to the virtual layer
-  const unscaledLeft = (rect.left - layerRect.left) / scale;
-  const unscaledTop = (rect.top - layerRect.top) / scale;
+  const rotateDeg = parseFloat(el.style.getPropertyValue('--widget-rotate')) || 0;
+  const rotateStr = rotateDeg ? `rotate(${rotateDeg}deg)` : '';
 
-  const currentRotate = el.style.getPropertyValue('--widget-rotate') || '0deg';
+  // Read position from CSS values directly instead of getBoundingClientRect().
+  // For rotated elements, getBoundingClientRect() returns the axis-aligned
+  // bounding box which is larger/shifted — causing upward drift on click.
+  let unscaledLeft, unscaledTop;
 
-  el.style.transform = currentRotate; 
+  if (el.style.left === '50%') {
+    // Center-anchored: compute pixel left from center
+    unscaledLeft = 640 - el.offsetWidth / 2;
+    unscaledTop = parseFloat(el.style.top) || 0;
+  } else if (el.style.left && el.style.left.endsWith('px')) {
+    unscaledLeft = parseFloat(el.style.left) || 0;
+    unscaledTop = parseFloat(el.style.top) || 0;
+  } else {
+    // Fallback: use bounding rect (only for unpositioned widgets)
+    const rect = el.getBoundingClientRect();
+    unscaledLeft = (rect.left - layerRect.left) / scale;
+    unscaledTop = (rect.top - layerRect.top) / scale;
+  }
+
+  // Set pixel position and remove translateX(-50%) before dragging
   el.style.left = unscaledLeft + 'px';
   el.style.top = unscaledTop + 'px';
+  el.style.transform = rotateStr || 'none';
   el.style.transition = 'none';
   el.style.zIndex = '1000';
 
@@ -524,7 +553,7 @@ function _startDrag(el, clientX, clientY) {
     el,
     offsetX: unscaledMouseX - unscaledLeft,
     offsetY: unscaledMouseY - unscaledTop,
-    rotateStr: currentRotate
+    rotateStr: rotateStr
   };
   return true;
 }
@@ -765,8 +794,15 @@ function handleMove(e) {
   const w = _dragging.el.offsetWidth;
   const h = _dragging.el.offsetHeight;
 
-  left = Math.max(0, Math.min(left, 1280 - w));
-  top = Math.max(0, Math.min(top, 720 - h));
+  // Calculate actual viewport bounds in virtual (unscaled) coordinates
+  // so widgets can reach the real screen edges, not just the 1280x720 layer
+  const vpLeft = -layerRect.left / scale;
+  const vpTop = -layerRect.top / scale;
+  const vpRight = vpLeft + window.innerWidth / scale;
+  const vpBottom = vpTop + window.innerHeight / scale;
+
+  left = Math.max(vpLeft, Math.min(left, vpRight - w));
+  top = Math.max(vpTop, Math.min(top, vpBottom - h));
 
   // Snap to horizontal center of virtual screen
   const snapZone = 20;
