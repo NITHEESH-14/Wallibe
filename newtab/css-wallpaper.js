@@ -15,6 +15,9 @@ class CSSWallpaper {
   mount() {
     this.el.style.display = 'block';
     this._apply(this.settings.cssPreset || 'aurora');
+    if (window.__wallpaperEngine && window.__wallpaperEngine.onFirstFrame) {
+      window.__wallpaperEngine.onFirstFrame();
+    }
     return Promise.resolve();
   }
 

@@ -10,14 +10,47 @@
   <script>
     (function() {
       try {
-        var cachedWp = localStorage.getItem('wb_wallpaper_cache');
-        if (cachedWp) {
-          document.documentElement.style.backgroundImage = 'url(' + cachedWp + ')';
-          document.documentElement.style.backgroundSize = 'cover';
-          document.documentElement.style.backgroundPosition = 'center';
-          var s = document.createElement('style');
-          s.textContent = 'body { background: transparent !important; }';
-          document.head.appendChild(s);
+        var typeRaw = localStorage.getItem('wb_wallpaperType');
+        var type = typeRaw ? JSON.parse(typeRaw) : 'static';
+
+        var blurVal = 0;
+        var brightnessVal = 100;
+        var blur = localStorage.getItem('wb_blur');
+        var brightness = localStorage.getItem('wb_brightness');
+        if (blur) blurVal = JSON.parse(blur);
+        if (brightness) brightnessVal = JSON.parse(brightness);
+
+        var s = document.createElement('style');
+        var overlayBg = 'rgba(0,0,0,' + ((100 - brightnessVal) / 100).toFixed(2) + ')';
+        var overlayBlur = blurVal > 0 ? 'blur(' + blurVal + 'px)' : 'none';
+        s.textContent = 'body { background: transparent !important; } ' +
+                        '#wallpaper-overlay { ' +
+                        '  background: ' + overlayBg + ' !important; ' +
+                        '  backdrop-filter: ' + overlayBlur + ' !important; ' +
+                        '  -webkit-backdrop-filter: ' + overlayBlur + ' !important; ' +
+                        '}';
+        document.head.appendChild(s);
+
+        if (type === 'css') {
+          var presetRaw = localStorage.getItem('wb_cssPreset');
+          var preset = presetRaw ? JSON.parse(presetRaw) : 'aurora';
+          var presets = {
+            aurora: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e, #1a1a4e, #7c6af7, #a78bfa, #302b63)',
+            sunset: 'linear-gradient(135deg, #0f2027, #203a43, #2c5364, #e96c6c, #f7971e, #ffd200)',
+            ocean: 'linear-gradient(135deg, #000428, #004e92, #009ffd, #2af598, #004e92, #000428)',
+            forest: 'linear-gradient(135deg, #0a3d0a, #1a5c1a, #2e8b2e, #56ab2f, #a8e063, #2e8b2e, #0a3d0a)',
+            fire: 'linear-gradient(135deg, #200122, #6f0000, #cc0000, #e65c00, #f9d423, #e65c00, #6f0000)'
+          };
+          var bg = presets[preset] || presets.aurora;
+          document.documentElement.style.background = bg;
+          document.documentElement.style.backgroundSize = '400% 400%';
+        } else {
+          var cachedWp = localStorage.getItem('wb_wallpaper_cache');
+          if (cachedWp) {
+            document.documentElement.style.backgroundImage = 'url(' + cachedWp + ')';
+            document.documentElement.style.backgroundSize = 'cover';
+            document.documentElement.style.backgroundPosition = 'center';
+          }
         }
       } catch(e) {}
     })();

@@ -931,11 +931,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Clear instant cache background once real engine has rendered its first frames
-  setTimeout(() => {
+  window.__clearWallpaperCache = function() {
+    if (window.__wallpaperCacheCleared) return;
+    window.__wallpaperCacheCleared = true;
     document.documentElement.style.backgroundImage = '';
     document.documentElement.style.backgroundSize = '';
     document.documentElement.style.backgroundPosition = '';
-  }, 400); // Reduced from 800ms
+    document.documentElement.style.background = '';
+  };
+
+  // Safety fallback to clear cache background after 3.5 seconds if first frame event didn't fire
+  setTimeout(() => {
+    if (typeof window.__clearWallpaperCache === 'function') {
+      window.__clearWallpaperCache();
+    }
+  }, 3500);
 
   // Generate lightweight thumbnail cache for lightning-fast loading on next tab open
   setTimeout(() => {

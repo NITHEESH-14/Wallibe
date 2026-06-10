@@ -63,8 +63,18 @@ class WallpaperEngine {
   _mountStatic() {
     const img = document.getElementById('static-wallpaper');
     if (this.settings.staticUrl) {
-      img.src = this.settings.staticUrl;
+      const onImageLoad = () => {
+        this.onFirstFrame();
+      };
+      if (img.complete && img.src === this.settings.staticUrl) {
+        onImageLoad();
+      } else {
+        img.onload = onImageLoad;
+        img.src = this.settings.staticUrl;
+      }
       img.style.display = 'block';
+    } else {
+      this.onFirstFrame();
     }
     this._applyOverlay();
   }
@@ -91,6 +101,12 @@ class WallpaperEngine {
     overlay.style.background = `rgba(0,0,0,${(b / 100).toFixed(2)})`;
     overlay.style.backdropFilter = blur > 0 ? `blur(${blur}px)` : 'none';
     overlay.style.webkitBackdropFilter = blur > 0 ? `blur(${blur}px)` : 'none';
+  }
+
+  onFirstFrame() {
+    if (typeof window.__clearWallpaperCache === 'function') {
+      window.__clearWallpaperCache();
+    }
   }
 
   _onVisibility() {

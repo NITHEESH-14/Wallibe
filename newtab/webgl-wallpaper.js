@@ -119,6 +119,11 @@ class WebGLWallpaper {
       gl.drawArrays(gl.TRIANGLES, 0, 3);
 
       framesRendered++;
+      if (framesRendered === 1) {
+        if (window.__wallpaperEngine && window.__wallpaperEngine.onFirstFrame) {
+          window.__wallpaperEngine.onFirstFrame();
+        }
+      }
       // Capture a thumbnail after ~0.5 second (30 frames) directly from the active backbuffer
       if (framesRendered === 30) {
         try {

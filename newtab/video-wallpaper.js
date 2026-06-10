@@ -38,6 +38,10 @@ class VideoWallpaper {
       this.el.muted = true;
       return this.el.play();
     });
+
+    if (window.__wallpaperEngine && window.__wallpaperEngine.onFirstFrame) {
+      window.__wallpaperEngine.onFirstFrame();
+    }
   }
 
   applySettings(s) {
