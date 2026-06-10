@@ -62,37 +62,56 @@
 
   async function getAllSettings() {
     const s = { ...DEFAULT_SETTINGS };
+    const largeKeys = ['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl', 'floatCards'];
+
+    // 1. Load small settings from chrome.storage or localStorage
     if (typeof chrome !== 'undefined' && chrome.storage) {
       const local = await new Promise(res => chrome.storage.local.get(null, res));
       Object.keys(DEFAULT_SETTINGS).forEach(k => {
-        if (local[k] !== undefined) s[k] = local[k];
-        else s[k] = getS(k, DEFAULT_SETTINGS[k]);
+        if (!largeKeys.includes(k)) {
+          if (local[k] !== undefined) s[k] = local[k];
+          else s[k] = getS(k, DEFAULT_SETTINGS[k]);
+        }
       });
     } else {
-      for (const k of Object.keys(DEFAULT_SETTINGS)) {
-        if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(k) && window.__IDB) {
-          s[k] = await window.__IDB.get(k, getS(k, DEFAULT_SETTINGS[k]));
-        } else {
+      Object.keys(DEFAULT_SETTINGS).forEach(k => {
+        if (!largeKeys.includes(k)) {
           s[k] = getS(k, DEFAULT_SETTINGS[k]);
         }
+      });
+    }
+
+    // 2. Load large keys from IndexedDB
+    for (const k of largeKeys) {
+      if (window.__IDB) {
+        s[k] = await window.__IDB.get(k, getS(k, DEFAULT_SETTINGS[k]));
+      } else {
+        s[k] = getS(k, DEFAULT_SETTINGS[k]);
       }
     }
+
     return s;
   }
 
   async function setS(key, value) {
-    try { 
-      localStorage.setItem('wb_' + key, JSON.stringify(value)); 
-    } catch (e) {
-      if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-        console.warn('[Wallibe] localStorage quota exceeded, falling back to chrome.storage/IDB');
+    const largeKeys = ['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl', 'floatCards'];
+    if (largeKeys.includes(key)) {
+      if (window.__IDB) {
+        await window.__IDB.set(key, value);
+      } else {
+        try { localStorage.setItem('wb_' + key, JSON.stringify(value)); } catch (_) { }
       }
-    }
-    if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(key) && window.__IDB) {
-      await window.__IDB.set(key, value);
-    }
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.set({ [key]: value });
+    } else {
+      try { 
+        localStorage.setItem('wb_' + key, JSON.stringify(value)); 
+      } catch (e) {
+        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+          console.warn('[Wallibe] localStorage quota exceeded, falling back to chrome.storage/IDB');
+        }
+      }
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.set({ [key]: value });
+      }
     }
   }
 
@@ -283,18 +302,24 @@
   if (wpUpload) {
     wpUpload.addEventListener('change', e => {
       const file = e.target.files[0]; if (!file) return;
-      const type = file.type.startsWith('video/') ? 'video' : 'static';
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const url = ev.target.result;
-        const update = { wallpaperType: type };
-        if (type === 'video') update.videoUrl = url;
-        else update.staticUrl = url;
+      const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|ogg|mov|mkv)$/i.test(file.name);
+      const type = isVideo ? 'video' : 'static';
+
+      if (type === 'video') {
+        const update = { wallpaperType: 'video', videoUrl: file };
         const s = mergeSettings(update);
         applyWallpaper(s);
         updateWallpaperUI();
-      };
-      reader.readAsDataURL(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const url = ev.target.result;
+          const s = mergeSettings({ wallpaperType: 'static', staticUrl: url });
+          applyWallpaper(s);
+          updateWallpaperUI();
+        };
+        reader.readAsDataURL(file);
+      }
     });
   }
 

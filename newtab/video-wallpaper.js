@@ -9,13 +9,22 @@ class VideoWallpaper {
   constructor(settings) {
     this.settings = settings;
     this.el = document.getElementById('video-wallpaper');
+    this.objectUrl = null;
   }
 
   async mount() {
     const { videoUrl } = this.settings;
+    if (this.objectUrl) {
+      URL.revokeObjectURL(this.objectUrl);
+      this.objectUrl = null;
+    }
+
     if (!videoUrl) {
       // Use bundled fallback video
       this.el.src = '../assets/wallpapers/default.mp4';
+    } else if (videoUrl instanceof Blob) {
+      this.objectUrl = URL.createObjectURL(videoUrl);
+      this.el.src = this.objectUrl;
     } else {
       this.el.src = videoUrl;
     }
@@ -44,6 +53,10 @@ class VideoWallpaper {
   destroy() {
     this.el.pause();
     this.el.src = '';
+    if (this.objectUrl) {
+      URL.revokeObjectURL(this.objectUrl);
+      this.objectUrl = null;
+    }
     this.el.style.display = 'none';
   }
 }

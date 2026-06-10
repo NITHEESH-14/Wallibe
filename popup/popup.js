@@ -42,14 +42,24 @@ const IDB = {
 };
 
 function saveSettings(s) {
+  const largeKeys = ['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl', 'floatCards'];
   return new Promise(async (res) => {
-    await IDB.set('staticUrl', s.staticUrl || '');
-    await IDB.set('videoUrl', s.videoUrl || '');
+    // 1. Save large keys to IndexedDB
+    for (const key of largeKeys) {
+      if (s[key] !== undefined) {
+        await IDB.set(key, s[key]);
+      }
+    }
 
+    // 2. Prepare small settings object
+    const smallSettings = { ...s };
+    largeKeys.forEach(key => delete smallSettings[key]);
+
+    // 3. Save small settings to storage
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.set(s, res);
+      chrome.storage.local.set(smallSettings, res);
     } else {
-      Object.entries(s).forEach(([k, v]) => {
+      Object.entries(smallSettings).forEach(([k, v]) => {
         try { localStorage.setItem('wb_' + k, JSON.stringify(v)); } catch(e){}
       });
       res();
@@ -58,21 +68,29 @@ function saveSettings(s) {
 }
 
 function loadSettings() {
+  const largeKeys = ['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl', 'floatCards'];
   return new Promise(async (res) => {
+    const out = {};
+    
+    // 1. Load small settings
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.get(null, res);
+      const local = await new Promise(resolve => chrome.storage.local.get(null, resolve));
+      Object.assign(out, local);
     } else {
-      const out = {};
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (k.startsWith('wb_')) {
           try { out[k.slice(3)] = JSON.parse(localStorage.getItem(k)); } catch (_) {}
         }
       }
-      out.staticUrl = await IDB.get('staticUrl', out.staticUrl);
-      out.videoUrl = await IDB.get('videoUrl', out.videoUrl);
-      res(out);
     }
+
+    // 2. Load large keys from IndexedDB
+    for (const key of largeKeys) {
+      out[key] = await IDB.get(key, out[key] || '');
+    }
+
+    res(out);
   });
 }
 
@@ -169,19 +187,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('video-file').addEventListener('change', async (e) => {
     const file = e.target.files[0]; if (!file) return;
-    s.videoUrl = URL.createObjectURL(file);
-    videoUrlEl.value = s.videoUrl;
+    s.videoUrl = file;
+    videoUrlEl.value = file.name;
   });
 
   /* ── Static URL ─────────────────────────────────── */
   const staticUrlEl = document.getElementById('static-url');
-  staticUrlEl.value = s.staticUrl || '';
+  staticUrlEl.value = s.staticUrl && typeof s.staticUrl === 'string' ? s.staticUrl : '';
   staticUrlEl.addEventListener('change', () => { s.staticUrl = staticUrlEl.value.trim(); });
 
   document.getElementById('static-file').addEventListener('change', async (e) => {
     const file = e.target.files[0]; if (!file) return;
-    s.staticUrl = URL.createObjectURL(file);
-    staticUrlEl.value = s.staticUrl;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      s.staticUrl = ev.target.result;
+      staticUrlEl.value = 'Base64 Image';
+    };
+    reader.readAsDataURL(file);
   });
 
   /* ── Brightness slider ──────────────────────────── */

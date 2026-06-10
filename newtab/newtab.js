@@ -35,9 +35,18 @@ function lsGet(key, fallback) {
   try { const v = localStorage.getItem('wb_' + key); return v !== null ? JSON.parse(v) : fallback; }
   catch (_) { return fallback; }
 }
-function lsSet(key, value) {
-  try { localStorage.setItem('wb_' + key, JSON.stringify(value)); } catch (_) { }
-  if (typeof chrome !== 'undefined' && chrome.storage) chrome.storage.local.set({ [key]: value });
+async function lsSet(key, value) {
+  const largeKeys = ['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl', 'floatCards'];
+  if (largeKeys.includes(key)) {
+    if (window.__IDB) {
+      await window.__IDB.set(key, value);
+    } else {
+      try { localStorage.setItem('wb_' + key, JSON.stringify(value)); } catch (_) { }
+    }
+  } else {
+    try { localStorage.setItem('wb_' + key, JSON.stringify(value)); } catch (_) { }
+    if (typeof chrome !== 'undefined' && chrome.storage) chrome.storage.local.set({ [key]: value });
+  }
 }
 
 function debounce(fn, ms) {
@@ -47,25 +56,34 @@ function debounce(fn, ms) {
 
 async function getAllSettings() {
   const settings = { ...DEFAULT_SETTINGS };
+  const largeKeys = ['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl', 'floatCards'];
+
+  // 1. Load small settings from chrome.storage or localStorage
   if (typeof chrome !== 'undefined' && chrome.storage) {
     const local = await new Promise(res => chrome.storage.local.get(null, res));
     Object.keys(DEFAULT_SETTINGS).forEach(k => {
-      if (local[k] !== undefined) settings[k] = local[k];
-      else settings[k] = lsGet(k, DEFAULT_SETTINGS[k]);
+      if (!largeKeys.includes(k)) {
+        if (local[k] !== undefined) settings[k] = local[k];
+        else settings[k] = lsGet(k, DEFAULT_SETTINGS[k]);
+      }
     });
   } else {
-    for (const k of Object.keys(DEFAULT_SETTINGS)) {
-      if (['staticUrl', 'videoUrl', 'clockFontUrl', 'dateFontUrl', 'othersFontUrl', 'searchLogoUrl'].includes(k)) {
-        settings[k] = await window.__IDB.get(k, lsGet(k, DEFAULT_SETTINGS[k]));
-      } else if (k === 'floatCards') {
-        const cached = await window.__IDB.get('floatCards', null);
-        if (cached) settings.floatCards = cached;
-        else settings.floatCards = lsGet('floatCards', DEFAULT_SETTINGS.floatCards);
-      } else {
+    Object.keys(DEFAULT_SETTINGS).forEach(k => {
+      if (!largeKeys.includes(k)) {
         settings[k] = lsGet(k, DEFAULT_SETTINGS[k]);
       }
+    });
+  }
+
+  // 2. Load large keys from IndexedDB
+  for (const k of largeKeys) {
+    if (window.__IDB) {
+      settings[k] = await window.__IDB.get(k, lsGet(k, DEFAULT_SETTINGS[k]));
+    } else {
+      settings[k] = lsGet(k, DEFAULT_SETTINGS[k]);
     }
   }
+
   return settings;
 }
 
@@ -473,15 +491,20 @@ function mixColors(hex1, hex2, t) {
 
 function applyAccentColor(color, s = {}) {
   const root = document.documentElement;
-  const useGrad = s.useGradient !== undefined ? s.useGradient : lsGet('useGradient', false);
+  const current = window.__currentSettings || {};
+
+  const useGrad = s.useGradient !== undefined ? s.useGradient : 
+                  (current.useGradient !== undefined ? current.useGradient : lsGet('useGradient', false));
   // intensity: 0 = no gradient (all primary), 100 = full gradient to secondary
-  const intensity = s.gradientIntensity !== undefined ? s.gradientIntensity : lsGet('gradientIntensity', 50);
-  const angle = s.gradientAngle !== undefined ? s.gradientAngle : lsGet('gradientAngle', 135);
-  const primary = color || lsGet('accentColor', '#10b981');
+  const intensity = s.gradientIntensity !== undefined ? s.gradientIntensity : 
+                    (current.gradientIntensity !== undefined ? current.gradientIntensity : lsGet('gradientIntensity', 50));
+  const angle = s.gradientAngle !== undefined ? s.gradientAngle : 
+                (current.gradientAngle !== undefined ? current.gradientAngle : lsGet('gradientAngle', 135));
+  const primary = color || s.accentColor || current.accentColor || lsGet('accentColor', '#10b981');
 
   if (useGrad) {
     // Always use the saved secondary colour; NEVER overwrite it from primary
-    const c2 = s.accentColor2 || lsGet('accentColor2', adjustColor(primary, 30));
+    const c2 = s.accentColor2 || current.accentColor2 || lsGet('accentColor2', adjustColor(primary, 30));
     // Blend the secondary toward primary based on intensity (0% = ignore c2, 100% = full c2)
     // We use a slight curve (power of 0.7) to make the secondary color appear faster
     const t = Math.pow(Math.max(0, Math.min(100, +intensity)) / 100, 0.7);
@@ -889,11 +912,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const settings = await getAllSettings();
   window.__currentSettings = settings;
+  applyAccentColor(settings.accentColor, settings);
 
   applyResponsiveScale();
 
   // Preload critical assets
-  if (settings.wallpaperType === 'video' && settings.videoUrl) {
+  if (settings.wallpaperType === 'video' && settings.videoUrl && typeof settings.videoUrl === 'string') {
     const link = document.createElement('link');
     link.rel = 'preload';
     link.as = 'video';
@@ -901,8 +925,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.head.appendChild(link);
   }
 
-  // Apply IDB updates if needed (e.g. static/video URLs loaded)
-  if (window.__wallpaperEngine && (settings.wallpaperType === 'static' || settings.wallpaperType === 'video')) {
+  // Apply IDB updates
+  if (window.__wallpaperEngine) {
     window.__wallpaperEngine.applySettings(settings);
   }
 
