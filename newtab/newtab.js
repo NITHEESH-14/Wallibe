@@ -172,28 +172,62 @@ function loadCustomFonts(settings) {
   let css = '';
   const clockUrl = settings.clockFontUrl;
   const dateUrl = settings.dateFontUrl;
+  
+  // Clear any leftover inline font-family overrides to let stylesheet rules take effect
+  const clockEl = document.getElementById('clock-time');
+  if (clockEl) clockEl.style.fontFamily = '';
+  const dateEl = document.getElementById('clock-date');
+  if (dateEl) dateEl.style.fontFamily = '';
+  const searchEl = document.getElementById('search-input');
+  if (searchEl) searchEl.style.fontFamily = '';
+
+  const getFontSrc = (url, filename) => {
+    if (!url) return '';
+    let mimeType = 'font/woff2'; // fallback default
+    let format = 'woff2';
+
+    const ext = (filename || '').split('.').pop().toLowerCase();
+    if (ext === 'ttf') {
+      mimeType = 'font/ttf';
+      format = 'truetype';
+    } else if (ext === 'otf') {
+      mimeType = 'font/opentype';
+      format = 'opentype';
+    } else if (ext === 'woff') {
+      mimeType = 'font/woff';
+      format = 'woff';
+    } else if (ext === 'woff2') {
+      mimeType = 'font/woff2';
+      format = 'woff2';
+    }
+
+    // If the data URL has application/octet-stream, replace it with the correct mime-type
+    let cleanUrl = url;
+    if (cleanUrl.startsWith('data:application/octet-stream;')) {
+      cleanUrl = cleanUrl.replace('data:application/octet-stream;', `data:${mimeType};`);
+    }
+
+    return `url('${cleanUrl}') format('${format}')`;
+  };
+
   if (clockUrl) {
-    css += `@font-face { font-family: 'LT-ClockFont'; src: url('${clockUrl}'); font-display: block; }\n`;
+    const src = getFontSrc(clockUrl, settings.clockFontName);
+    css += `@font-face { font-family: 'LT-ClockFont'; src: ${src}; font-display: block; }\n`;
     css += `#clock-time { font-family: 'LT-ClockFont', 'Outfit', sans-serif !important; }\n`;
-    // Add error handling
-    const font = new FontFace('LT-ClockFont', `url(${clockUrl})`);
-    font.load().catch(() => {
-      console.warn('[Wallibe] Failed to load clock font, falling back to default');
-      const el = document.getElementById('clock-time');
-      if (el) el.style.fontFamily = 'Outfit, Inter, sans-serif';
-    });
   } else {
     css += `#clock-time { font-family: 'Outfit', 'Inter', sans-serif; }\n`;
   }
   if (dateUrl) {
-    css += `@font-face { font-family: 'LT-DateFont'; src: url('${dateUrl}'); font-display: block; }\n`;
+    const src = getFontSrc(dateUrl, settings.dateFontName);
+    css += `@font-face { font-family: 'LT-DateFont'; src: ${src}; font-display: block; }\n`;
     css += `#clock-date { font-family: 'LT-DateFont', 'Outfit', sans-serif !important; }\n`;
   } else {
     css += `#clock-date { font-family: 'Outfit', sans-serif; }\n`;
   }
   const othersUrl = settings.othersFontUrl;
   if (othersUrl) {
-    css += `@font-face { font-family: 'LT-OthersFont'; src: url('${othersUrl}'); font-display: block; }\n`;
+    const src = getFontSrc(othersUrl, settings.othersFontName);
+    css += `@font-face { font-family: 'LT-OthersFont'; src: ${src}; font-display: block; }\n`;
     // Only target on-page widgets — NOT settings panel (causes blur with custom fonts)
     css += `.quicklink-label, #search-input, #search-input::placeholder { font-family: 'LT-OthersFont', 'Inter', sans-serif !important; }\n`;
     css += `#search-input { line-height: 1 !important; display: flex !important; align-items: center !important; }\n`;
@@ -940,12 +974,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.documentElement.style.background = '';
   };
 
-  // Safety fallback to clear cache background after 3.5 seconds if first frame event didn't fire
-  setTimeout(() => {
-    if (typeof window.__clearWallpaperCache === 'function') {
-      window.__clearWallpaperCache();
-    }
-  }, 3500);
+
 
   // Generate lightweight thumbnail cache for lightning-fast loading on next tab open
   setTimeout(() => {
@@ -1060,11 +1089,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   attachRotateHandlers();
 
   // One-time layout adjustment ensure it doesn't clear custom positions
-  const runLayout = () => {
-    layoutWidgets();
-  };
-
-  runLayout(); // Run instantly to prevent visual jump
-  setTimeout(runLayout, 300); // Nudge layout after settling
+  layoutWidgets(); // Run instantly to prevent visual jump
+  setTimeout(layoutWidgets, 300); // Nudge layout after settling
   window.addEventListener('resize', debounce(layoutWidgets, 150));
+
+  window.__startupFinished = true;
 });

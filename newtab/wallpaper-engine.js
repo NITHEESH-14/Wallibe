@@ -22,6 +22,9 @@ class WallpaperEngine {
   }
 
   async applySettings(settings) {
+    if (window.__startupFinished && typeof window.__clearWallpaperCache === 'function') {
+      window.__clearWallpaperCache();
+    }
     const typeChanged = settings.wallpaperType !== this.settings.wallpaperType;
     this.settings = settings;
     this._applyOverlay();
@@ -104,9 +107,8 @@ class WallpaperEngine {
   }
 
   onFirstFrame() {
-    if (typeof window.__clearWallpaperCache === 'function') {
-      window.__clearWallpaperCache();
-    }
+    // Keep as no-op to allow the cached background image to remain under the canvas as a permanent fallback.
+    // This prevents the screen from going black when backgrounded or Alt-Tabbed.
   }
 
   _onVisibility() {

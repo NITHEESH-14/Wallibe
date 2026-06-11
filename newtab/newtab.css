@@ -192,13 +192,12 @@ body.edit-layout #date-widget {
 }
 
 #clock-date .date-num {
-  font-weight: 700;
+  font-weight: 500;
 }
 
 #clock-date .date-month {
   text-transform: uppercase;
   letter-spacing: 1px;
-  opacity: 0.8;
 }
 #date-widget {
   width: fit-content;

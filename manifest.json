@@ -4,20 +4,11 @@
   "version": "1.1.0",
   "description": "Beautiful live wallpapers (video, WebGL shaders, animated gradients) on every new tab with clock and smart search.",
   "author": "Wallibe",
-  "icons": {
-    "16": "assets/icons/icon16.png",
-    "48": "assets/icons/icon48.png",
-    "128": "assets/icons/icon128.png"
-  },
   "chrome_url_overrides": {
     "newtab": "newtab/newtab.html"
   },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_icon": {
-      "16": "assets/icons/icon16.png",
-      "48": "assets/icons/icon48.png"
-    },
     "default_title": "Wallibe Settings"
   },
   "background": {
@@ -28,7 +19,7 @@
     "unlimitedStorage"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' blob: data:; connect-src https://www.google.com"
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' blob: data:; connect-src https://www.google.com"
   },
   "web_accessible_resources": [
     {
