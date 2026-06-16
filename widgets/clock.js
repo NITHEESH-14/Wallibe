@@ -50,7 +50,7 @@ class ClockWidget {
       const numEl   = this.dateEl.querySelector('.date-num');
       const monthEl = this.dateEl.querySelector('.date-month');
 
-      const dayStr   = now.toLocaleDateString(undefined, { weekday: 'long' });
+      const dayStr   = now.toLocaleDateString(undefined, { weekday: 'long' }) + ',';
       const numStr   = now.getDate();
       const monthStr = now.toLocaleDateString(undefined, { month: 'long' });
 
